@@ -3,24 +3,24 @@ import admin = require("firebase-admin");
 
 admin.initializeApp();
 
-exports.generateMatches = functions.https.onRequest(
-    async (request, response) => {
+exports.generateMatches = functions.https.onCall(
+    async (data, context) => {
       const N = 30;
-      const userid = String(request.query.userid);
+      const userid = (context.auth && context.auth.uid)!;
       const db = admin.firestore();
+
+      console.log("userid: " + userid);
 
       // TODO select only relevant fields (not pic)
       const userinfo = (await db.collection("users")
           .doc(userid).get()).data();
       if (userinfo == null) {
-        response.status(500).send("Couldn't find user id");
-        return;
+        return {code: 500, message: "Couldn't find user id"};
       }
       const lastSearch = userinfo!.lastSearch;
       if ((admin.firestore.Timestamp.now().toMillis() -
           lastSearch.toMillis()) < (1000 * 60 * 60)) {
-        response.status(429).send("Already requested within last hour");
-        return;
+        return {code: 429, message: "Already requested within last hour"};
       }
       const activities = new Set();
       for (const category of userinfo!.interests) {
@@ -42,8 +42,7 @@ exports.generateMatches = functions.https.onRequest(
             })
             .catch(function(error) {
               console.log("Error getting documents: ", error);
-              response.status(500).send("Unknown error");
-              return;
+              return {code: 500, message: "Unknown error"};
             });
       }
       // add some without interest filter
@@ -64,8 +63,7 @@ exports.generateMatches = functions.https.onRequest(
           })
           .catch(function(error) {
             console.log("Error getting documents: ", error);
-            response.status(500).send("Unknown error");
-            return;
+            return {code: 500, message: "Unknown error"};
           });
       console.log(activities);
 
@@ -75,8 +73,7 @@ exports.generateMatches = functions.https.onRequest(
       console.log("after user update");
 
       if (activities.size == 0) {
-        response.status(204).send("No new activities available");
-        return;
+        return {code: 204, message: "No new activities available"};
       }
 
       console.log("before batch");
@@ -89,6 +86,6 @@ exports.generateMatches = functions.https.onRequest(
       batch.commit();
       console.log("after batch");
 
-      response.status(200).send("Generated new matches");
+      return {code: 200, message: "Generated new matches"};
     }
 );
