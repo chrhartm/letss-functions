@@ -89,3 +89,14 @@ exports.generateMatches = functions.https.onCall(
       return {code: 200, message: "Generated new matches"};
     }
 );
+
+exports.deleteUser = functions.https.onCall(
+    async (data, context) => {
+      const userid = (context.auth && context.auth.uid)!;
+
+      console.log("Deleting userid: " + userid);
+      console.warn("Delete function not yet implemented");
+
+      return {code: 501, message: "Not implemented"};
+    }
+);
