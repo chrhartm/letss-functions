@@ -100,3 +100,86 @@ exports.deleteUser = functions.https.onCall(
       return {code: 501, message: "Not implemented"};
     }
 );
+
+exports.pushOnLike = functions.firestore
+    .document("/activities/{activityId}/likes/{likeId}")
+    .onCreate((snap, context) => {
+      const db = admin.firestore();
+      const like = snap.data();
+      db.collection("users").doc(snap.id)
+          .get().then((senderDoc) => {
+            if (senderDoc.exists == false) {
+              console.log("Couldn't find user: " + snap.id);
+              return;
+            }
+            const sender = senderDoc.data()!;
+            db.collection("activities").doc(context.params.activityId)
+                .get().then((activity) => {
+                  if (activity.exists == false) {
+                    console.log("Couldn't find activity: " +
+                        context.params.activityId);
+                    return;
+                  }
+                  db.collection("users").doc(activity.data()!.user)
+                      .get().then((receiverDoc) => {
+                        if (receiverDoc.exists == false) {
+                          console.log("Couldn't find user: " +
+                              activity.data()!.user);
+                          return;
+                        }
+                        const receiver = receiverDoc.data()!;
+                        const payload = {
+                          notification: {
+                            title: sender.name,
+                            body: like.message,
+                          },
+                        };
+                        console.log("Sending message to " + receiver.name +
+                            ": " + payload);
+                        admin.messaging()
+                            .sendToDevice(receiver.token.token, payload)
+                            .then((response) => console.log(response.results));
+                      });
+                });
+          });
+    });
+
+exports.pushOnMessage = functions.firestore
+    .document("/chats/{chatId}")
+    .onUpdate((change, _) => {
+      const beforeM = change.before.data();
+      const afterM = change.after.data();
+      // Make sure sender changed
+      if (beforeM.lastMessage.user == afterM.lastMessage.user) {
+        return;
+      }
+      admin.firestore().collection("users").doc(beforeM.lastMessage.user)
+          .get().then((document) => {
+            if (document.exists == false) {
+              console.log("Couldn't find user: " +
+                  beforeM.lastMessage.user);
+              return;
+            }
+            const beforeU = document.data()!;
+            admin.firestore().collection("users").doc(afterM.lastMessage.user)
+                .get().then((document) => {
+                  if (document.exists == false) {
+                    console.log("Couldn't find user: " +
+                        afterM.lastMessage.user);
+                    return;
+                  }
+                  const afterU = document.data()!;
+                  const payload = {
+                    notification: {
+                      title: afterU.name,
+                      body: afterM.lastMessage.message,
+                    },
+                  };
+                  console.log("Sending message to " + afterU.name +
+                      ": " + payload);
+                  admin.messaging()
+                      .sendToDevice(beforeU.token.token, payload)
+                      .then((response) => console.log(response));
+                });
+          });
+    });
