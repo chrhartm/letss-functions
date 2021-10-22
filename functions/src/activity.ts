@@ -45,6 +45,7 @@ exports.like = functions.https.onCall(
             .set(like)
             .then((value) => console.log("set like"));
       } catch (error) {
+        console.log("couldn't set like " + error);
         return {code: 500, message: "Couldn't set like"};
       }
       try {
@@ -53,6 +54,7 @@ exports.like = functions.https.onCall(
             .update({"coins": userinfo.coins - 1})
             .then((value) => console.log("Updated coins"));
       } catch (error) {
+        console.log("couldn't update coins " + error);
         console.log("Couldn't update coins");
       }
       return {code: 200, message: "Submitted like"};
