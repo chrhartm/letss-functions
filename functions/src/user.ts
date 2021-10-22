@@ -1,7 +1,4 @@
 import functions = require("firebase-functions");
-import admin = require("firebase-admin");
-
-admin.initializeApp();
 
 exports.deleteUser = functions.https.onCall(
     async (data, context) => {
