@@ -6,11 +6,12 @@ exports.like = functions.region("europe-west1").https.onCall(
       const userId = (context.auth && context.auth.uid)!;
       const db = admin.firestore();
       const activityId = data.activityId;
+      const activityUserId = data.activityUserId;
       const matchId = data.matchId;
       const like = {
         "message": data.message,
         "status": "ACTIVE",
-        "timestamp": Date.now().toString(),
+        "timestamp": Date.now(),
         "read": false};
 
       console.log("userid: " + userId);
@@ -56,7 +57,16 @@ exports.like = functions.region("europe-west1").https.onCall(
             .then((value) => console.log("Updated coins"));
       } catch (error) {
         console.log("couldn't update coins " + error);
-        console.log("Couldn't update coins");
+        return {code: 500, message: "Couldn't udpate coins"};
+      }
+      try {
+        await db.collection("notifications")
+            .doc(activityUserId)
+            .set({"newLikes": true}, {merge: true})
+            .then((value) => console.log("Updated notifications"));
+      } catch (error) {
+        console.log("couldn't update notifications " + error);
+        return {code: 500, message: "Couldn't udpate notifications"};
       }
       return {code: 200, message: "Submitted like"};
     }
