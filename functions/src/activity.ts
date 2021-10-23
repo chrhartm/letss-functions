@@ -35,7 +35,10 @@ exports.like = functions.region("europe-west1").https.onCall(
       try {
         await db.collection("matches")
             .doc(matchId)
-            .update({"status": "LIKE"});
+            // set with all details in case it's coming from a link
+            // (needed as audit trail for deleting later)
+            .set({"activity": activityId, "user": userId,
+              "status": "LIKE"}, {merge: true});
       } catch (error) {
         return {code: 500, message: "Couldn't update matches"};
       }
