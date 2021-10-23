@@ -10,7 +10,8 @@ exports.like = functions.https.onCall(
       const like = {
         "message": data.message,
         "status": "ACTIVE",
-        "timestamp": Date.now().toString()};
+        "timestamp": Date.now().toString(),
+        "read": false};
 
       console.log("userid: " + userId);
       console.log("activityId: " + activityId);
@@ -148,7 +149,7 @@ exports.generateMatches = functions.https.onCall(
     }
 );
 
-exports.resetCoins = functions.pubsub.schedule("0 9 * * *")
+exports.resetCoins = functions.pubsub.schedule("0 10 * * *")
     .timeZone("Europe/Paris")
     .onRun((context) => {
       const db = admin.firestore();
