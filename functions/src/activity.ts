@@ -148,8 +148,9 @@ exports.generateMatches = functions.https.onCall(
     }
 );
 
-exports.resetCoins = functions.https.onCall(
-    async (data, context) => {
+exports.resetCoins = functions.pubsub.schedule("0 9 * * *")
+    .timeZone("Europe/Paris")
+    .onRun((context) => {
       const db = admin.firestore();
       const coinsFree = 5;
       const coinsSupporter = 10;
@@ -164,6 +165,5 @@ exports.resetCoins = functions.https.onCall(
                   .update({"coins": coins});
             });
           });
-    }
-);
-
+      return null;
+    });
