@@ -1,7 +1,8 @@
 import functions = require("firebase-functions");
 import admin = require("firebase-admin");
 
-exports.incrementCategoryPopularity = functions.firestore
+exports.incrementCategoryPopularity = functions.region("europe-west1")
+    .firestore
     .document("/activities/{activityId}")
     .onCreate((snap, context) => {
       const db = admin.firestore();

@@ -1,7 +1,7 @@
 import functions = require("firebase-functions");
 import admin = require("firebase-admin");
 
-exports.like = functions.https.onCall(
+exports.like = functions.region("europe-west1").https.onCall(
     async (data, context) => {
       const userId = (context.auth && context.auth.uid)!;
       const db = admin.firestore();
@@ -62,7 +62,7 @@ exports.like = functions.https.onCall(
     }
 );
 
-exports.generateMatches = functions.https.onCall(
+exports.generateMatches = functions.region("europe-west1").https.onCall(
     async (data, context) => {
       const N = 30;
       const userid = (context.auth && context.auth.uid)!;
@@ -149,7 +149,8 @@ exports.generateMatches = functions.https.onCall(
     }
 );
 
-exports.resetCoins = functions.pubsub.schedule("0 10 * * *")
+exports.resetCoins = functions.region("europe-west1")
+    .pubsub.schedule("0 10 * * *")
     .timeZone("Europe/Paris")
     .onRun((context) => {
       const db = admin.firestore();

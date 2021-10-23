@@ -1,7 +1,7 @@
 import functions = require("firebase-functions");
 import admin = require("firebase-admin");
 
-exports.pushOnLike = functions.firestore
+exports.pushOnLike = functions.region("europe-west1").firestore
     .document("/activities/{activityId}/likes/{likeId}")
     .onCreate((snap, context) => {
       const db = admin.firestore();
@@ -32,6 +32,7 @@ exports.pushOnLike = functions.firestore
                           notification: {
                             title: sender.name,
                             body: like.message,
+                            type: "like",
                           },
                         };
                         console.log("Sending message to " + receiver.name +
@@ -44,7 +45,7 @@ exports.pushOnLike = functions.firestore
           });
     });
 
-exports.pushOnMessage = functions.firestore
+exports.pushOnMessage = functions.region("europe-west1").firestore
     .document("/chats/{chatId}")
     .onUpdate((change, _) => {
       const beforeM = change.before.data();
@@ -73,6 +74,7 @@ exports.pushOnMessage = functions.firestore
                     notification: {
                       title: afterU.name,
                       body: afterM.lastMessage.message,
+                      type: "message",
                     },
                   };
                   console.log("Sending message to " + afterU.name +

@@ -1,6 +1,6 @@
 import functions = require("firebase-functions");
 
-exports.deleteUser = functions.https.onCall(
+exports.deleteUser = functions.region("europe-west1").https.onCall(
     async (data, context) => {
       const userid = (context.auth && context.auth.uid)!;
 
