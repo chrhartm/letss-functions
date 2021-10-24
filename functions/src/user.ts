@@ -1,5 +1,6 @@
 import functions = require("firebase-functions");
 import admin = require("firebase-admin");
+import {firestore} from "firebase-admin";
 
 /**
  * Copied from https://firebase.google.com/docs/firestore/manage-data/delete-data
@@ -120,11 +121,11 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
                             .collection("likes")
                             .doc(userId)
                             .delete()
-                            .then((val) => console.log(
+                            .then(() => console.log(
                                 "deleted like for activity: " + data.activity))
                             .catch((err) => console.log(
                                 "failed to delete like for activity: " +
-                                data.activity));
+                                data.activity + " " + err));
                       }
                       db.collection("matches")
                           .doc(doc.id)
@@ -156,11 +157,19 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
                           });
                       const users = doc.data().users;
                       const index = users.indexOf(userId, 0);
+                      const deletemessage = {
+                        "message": "This user deleted his account",
+                        "user": "DELETED",
+                        "timestamp": firestore.Timestamp.now()};
                       users[index] = "DELETED";
                       db.collection("chats")
                           .doc(doc.id)
-                          .set({"status": "DELETED", "read": [],
-                            "users": users});
+                          .set({"status": doc.data().status, "read": [],
+                            "users": users, "lastMessage": deletemessage});
+                      db.collection("chats")
+                          .doc(doc.id)
+                          .collection("messages")
+                          .add(deletemessage);
                     });
               }
           )
@@ -169,9 +178,16 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
       await db.collection("notifications")
           .doc(userId)
           .delete()
-          .catch((error) => {
+          .catch(() => {
             return {code: 500, message: "Couldn't delete notifications"};
           });
+      // delete image
+      const defaultBucket = admin.storage().bucket();
+      const file = defaultBucket.file("profilePics/" + userId + ".jpg");
+      file.delete()
+          .then(() => console.log("deleted profile pic"))
+          .catch((err) => console.log("error deleting profile pic: " + err));
+
       // delete user
       await db.collection("users")
           .doc(userId)

@@ -1,5 +1,6 @@
 import functions = require("firebase-functions");
 import admin = require("firebase-admin");
+import {firestore} from "firebase-admin";
 
 exports.like = functions.region("europe-west1").https.onCall(
     async (data, context) => {
@@ -11,7 +12,7 @@ exports.like = functions.region("europe-west1").https.onCall(
       const like = {
         "message": data.message,
         "status": "ACTIVE",
-        "timestamp": Date.now(),
+        "timestamp": firestore.Timestamp.now(),
         "read": false};
 
       console.log("userid: " + userId);
