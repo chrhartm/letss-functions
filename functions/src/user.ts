@@ -192,7 +192,7 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
       await db.collection("users")
           .doc(userId)
           .delete()
-          .catch((error) => {
+          .catch(() => {
             return {code: 500, message: "Couldn't delete user"};
           });
       // delete user (auth)
@@ -200,3 +200,15 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
       return {code: 200, message: "Deleted user"};
     }
 );
+
+exports.initializeUser = functions.region("europe-west1").firestore
+    .document("/users/{userId}")
+    .onCreate((snap, context) => {
+      const db = admin.firestore();
+      const payload = {"coins": 5};
+      db.collection("users")
+          .doc(snap.id)
+          .update(payload)
+          .then(() => console.log("Initialized user " + snap.id))
+          .catch((err) => console.log("Error: " + err));
+    });

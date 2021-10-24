@@ -90,10 +90,13 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       if (userinfo == null) {
         return {code: 500, message: "Couldn't find user id"};
       }
-      const lastSearch = userinfo!.lastSearch;
+      let lastSearch = userinfo!.lastSearch;
       if ((lastSearch != null) && (admin.firestore.Timestamp.now().toMillis() -
           lastSearch.toMillis()) < (1000 * 60 * 60)) {
         return {code: 429, message: "Already requested within last hour"};
+      }
+      if (lastSearch == null) {
+        lastSearch = admin.firestore.Timestamp.fromMillis(0);
       }
       const activities = new Set();
       for (const category of userinfo!.interests) {
