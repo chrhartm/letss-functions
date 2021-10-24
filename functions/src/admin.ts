@@ -1,0 +1,96 @@
+import functions = require("firebase-functions");
+import admin = require("firebase-admin");
+
+exports.bootstrapDb = functions.region("europe-west1").https
+    .onRequest((req, res) => {
+      const db = admin.firestore();
+
+      if (req.query.passphrase != "supersecretpassphrase123") {
+        res.status(401).send("Not authenticated");
+      }
+
+      const payload = {
+        "name": "Deleted",
+        "job": "Deleted user",
+        "bio": "This user was deleted.",
+        "interests": [],
+        "dob": admin.firestore.Timestamp.now()};
+      db.collection("users")
+          .doc("DELETED")
+          .set(payload)
+          .catch((err) => res.status(500).send("Failed adding user"));
+
+      const countries = ["NL", "DE"];
+
+      const categories = [
+        // Sports
+        "dancing",
+        "soccer",
+        "boxing",
+        "tennis",
+        "squash",
+        "jogging",
+        "bouldering",
+        "climbing",
+        "hiking",
+        "biking",
+        "basketball",
+        "yoga",
+        // Meta
+        "friendship",
+        "dating",
+        // Concerts
+        "museums",
+        "concerts",
+        "live music",
+        "parties",
+        "movies",
+        "politics",
+        "activism",
+        "environment",
+        // Hobbies
+        "guitar",
+        "piano",
+        "dj",
+        "singing",
+        "drums",
+        "bass",
+        "cooking",
+        "board games",
+        "drinking",
+        "coffee",
+        "beer",
+        "meditation",
+        "mindfulness",
+        "travel",
+        // Work
+        "study buddy",
+        "job shadowing",
+      ];
+
+      for (const country in countries) {
+        // needed for linting
+        if (country != null) {
+          const batch = db.batch();
+          for (const category in categories) {
+            // needed for linting
+            if (category != null) {
+              const payload = {
+                "name": categories[category],
+                "popularity": 1,
+                "status": "ACTIVE",
+                "timestamp": admin.firestore.Timestamp.now(),
+              };
+              db.collection("categories").doc(countries[country])
+                  .collection("categories")
+                  .doc(categories[category])
+                  .set(payload, {merge: true});
+            }
+          }
+          batch.commit()
+              .catch((err) =>
+                res.status(500).send("Error in category addition"));
+        }
+      }
+      res.status(200).send("Finished bootstrapping");
+    });
