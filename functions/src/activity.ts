@@ -8,7 +8,7 @@ exports.like = functions.region("europe-west1").https.onCall(
       const db = admin.firestore();
       const activityId = data.activityId;
       const activityUserId = data.activityUserId;
-      const matchId = data.matchId;
+      const matchId = data.activityId + "_" + data.activityUserId;
       const like = {
         "message": data.message,
         "status": "ACTIVE",
