@@ -13,6 +13,7 @@ exports.bootstrapDb = functions.region("europe-west1").https
         "name": "Deleted",
         "job": "Deleted user",
         "bio": "This user was deleted.",
+        "gender": "",
         "interests": [],
         "dob": admin.firestore.Timestamp.now()};
       db.collection("users")
