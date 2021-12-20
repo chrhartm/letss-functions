@@ -51,9 +51,9 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
       const beforeM = change.before.data();
       const afterM = change.after.data();
       // Make sure sender changed
-      //if (beforeM.lastMessage.user == afterM.lastMessage.user) {
-      //  return null;
-      //}
+      if (beforeM.lastMessage.user == afterM.lastMessage.user) {
+        return null;
+      }
       return admin.firestore().collection("users").doc(beforeM.lastMessage.user)
           .get().then((document) => {
             if (document.exists == false) {
