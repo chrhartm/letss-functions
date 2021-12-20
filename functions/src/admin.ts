@@ -2,7 +2,7 @@ import functions = require("firebase-functions");
 import admin = require("firebase-admin");
 
 exports.bootstrapDb = functions.region("europe-west1").https
-    .onRequest((req, res) => {
+    .onRequest(async (req, res) => {
       const db = admin.firestore();
 
       if (req.query.passphrase != "supersecretpassphrase123") {
@@ -16,7 +16,7 @@ exports.bootstrapDb = functions.region("europe-west1").https
         "gender": "",
         "interests": [],
         "dob": admin.firestore.Timestamp.now()};
-      db.collection("users")
+      await db.collection("users")
           .doc("DELETED")
           .set(payload)
           .catch((err) => res.status(500).send("Failed adding user"));
@@ -72,6 +72,7 @@ exports.bootstrapDb = functions.region("europe-west1").https
       for (const country in countries) {
         // needed for linting
         if (country != null) {
+          // TODO not sure if hte batching is working here
           const batch = db.batch();
           for (const category in categories) {
             // needed for linting
@@ -82,13 +83,13 @@ exports.bootstrapDb = functions.region("europe-west1").https
                 "status": "ACTIVE",
                 "timestamp": admin.firestore.Timestamp.now(),
               };
-              db.collection("categories").doc(countries[country])
+              await db.collection("categories").doc(countries[country])
                   .collection("categories")
                   .doc(categories[category])
                   .set(payload, {merge: true});
             }
           }
-          batch.commit()
+          await batch.commit()
               .catch((err) =>
                 res.status(500).send("Error in category addition"));
         }

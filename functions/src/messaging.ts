@@ -6,26 +6,26 @@ exports.pushOnLike = functions.region("europe-west1").firestore
     .onCreate((snap, context) => {
       const db = admin.firestore();
       const like = snap.data();
-      db.collection("users").doc(snap.id)
+      return db.collection("users").doc(snap.id)
           .get().then((senderDoc) => {
             if (senderDoc.exists == false) {
               console.log("Couldn't find user: " + snap.id);
-              return;
+              return null;
             }
             const sender = senderDoc.data()!;
-            db.collection("activities").doc(context.params.activityId)
+            return db.collection("activities").doc(context.params.activityId)
                 .get().then((activity) => {
                   if (activity.exists == false) {
                     console.log("Couldn't find activity: " +
                         context.params.activityId);
-                    return;
+                    return null;
                   }
-                  db.collection("users").doc(activity.data()!.user)
+                  return db.collection("users").doc(activity.data()!.user)
                       .get().then((receiverDoc) => {
                         if (receiverDoc.exists == false) {
                           console.log("Couldn't find user: " +
                               activity.data()!.user);
-                          return;
+                          return null;
                         }
                         const receiver = receiverDoc.data()!;
                         const payload = {
@@ -37,7 +37,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         };
                         console.log("Sending message to " + receiver.name +
                             ": " + payload);
-                        admin.messaging()
+                        return admin.messaging()
                             .sendToDevice(receiver.token.token, payload)
                             .then((response) => console.log(response.results));
                       });
@@ -52,22 +52,23 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
       const afterM = change.after.data();
       // Make sure sender changed
       if (beforeM.lastMessage.user == afterM.lastMessage.user) {
-        return;
+        return null;
       }
-      admin.firestore().collection("users").doc(beforeM.lastMessage.user)
+      return admin.firestore().collection("users").doc(beforeM.lastMessage.user)
           .get().then((document) => {
             if (document.exists == false) {
               console.log("Couldn't find user: " +
                   beforeM.lastMessage.user);
-              return;
+              return null;
             }
             const beforeU = document.data()!;
-            admin.firestore().collection("users").doc(afterM.lastMessage.user)
+            return admin.firestore().collection("users")
+                .doc(afterM.lastMessage.user)
                 .get().then((document) => {
                   if (document.exists == false) {
                     console.log("Couldn't find user: " +
                         afterM.lastMessage.user);
-                    return;
+                    return null;
                   }
                   const afterU = document.data()!;
                   const payload = {
@@ -79,7 +80,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                   };
                   console.log("Sending message to " + afterU.name +
                       ": " + payload);
-                  admin.messaging()
+                  return admin.messaging()
                       .sendToDevice(beforeU.token.token, payload)
                       .then((response) => console.log(response));
                 });

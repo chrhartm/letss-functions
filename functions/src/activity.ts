@@ -144,7 +144,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       console.log(activities);
 
       const now = admin.firestore.Timestamp.now();
-      db.collection("users").doc(userid)
+      await db.collection("users").doc(userid)
           .update({lastSearch: now});
       console.log("after user update");
 
@@ -159,7 +159,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
           timestamp: now};
         batch.set(db.collection("matches").doc(doc+"_"+userid), data);
       });
-      batch.commit();
+      await batch.commit();
       console.log("after batch");
 
       return {code: 200, message: "Generated new matches"};
@@ -173,7 +173,7 @@ exports.resetCoins = functions.region("europe-west1")
       const db = admin.firestore();
       const coinsFree = 5;
       const coinsSupporter = 10;
-      db.collection("users")
+      return db.collection("users")
           .get()
           .then((snapshot) => {
             snapshot.forEach((doc) => {
@@ -184,5 +184,4 @@ exports.resetCoins = functions.region("europe-west1")
                   .update({"coins": coins});
             });
           });
-      return null;
     });

@@ -84,11 +84,11 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
           .get()
           .then(
               (query) => {
-                query.forEach(
-                    (doc) => {
+                return Promise.all(query.docs.map(
+                    async (doc) => {
                       const collection = "activities/"+doc.id+"/likes";
                       console.log("Attempting delete for : " + collection);
-                      deleteCollection(db,
+                      await deleteCollection(db,
                           collection, batchSize)
                           .then((val) => {
                             console.log("Deleted likes on own activities: " +
@@ -97,10 +97,10 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
                           .catch((err) => {
                             console.log("Error in promise " + err);
                           });
-                      db.collection("activities")
+                      await db.collection("activities")
                           .doc(doc.id)
                           .delete();
-                    });
+                    }));
               }
           )
           .catch((err) => console.log("Error in query " + err));
@@ -111,12 +111,11 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
           .get()
           .then(
               (query) => {
-                query.forEach(
-                    (doc) => {
+                return Promise.all(query.docs.map(
+                    async (doc) => {
                       const data = doc.data();
-                      const batch = db.batch();
                       if (data.status == "LIKE") {
-                        db.collection("activities")
+                        await db.collection("activities")
                             .doc(data.activity)
                             .collection("likes")
                             .doc(userId)
@@ -127,11 +126,10 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
                                 "failed to delete like for activity: " +
                                 data.activity + " " + err));
                       }
-                      db.collection("matches")
+                      await db.collection("matches")
                           .doc(doc.id)
                           .delete();
-                      batch.commit();
-                    });
+                    }));
               });
       // delete chat messages and anonymize chat
       await db
@@ -140,37 +138,36 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
           .get()
           .then(
               (query) => {
-                query.forEach(
-                    (doc) => {
-                      const collection = "chats/"+doc.id+"/messages";
-                      console.log("Attempting delete for : " + collection);
-                      const query = db.collection(collection).where("user",
-                          "==", userId);
-                      deleteQueryResults(db,
-                          query, batchSize)
-                          .then((val) => {
-                            console.log("Deleted messages on own chat: " +
-                                val);
-                          })
-                          .catch((err) => {
-                            console.log("Error in promise " + err);
-                          });
-                      const users = doc.data().users;
-                      const index = users.indexOf(userId, 0);
-                      const deletemessage = {
-                        "message": "This user deleted his account",
-                        "user": "DELETED",
-                        "timestamp": firestore.Timestamp.now()};
-                      users[index] = "DELETED";
-                      db.collection("chats")
-                          .doc(doc.id)
-                          .set({"status": doc.data().status, "read": [],
-                            "users": users, "lastMessage": deletemessage});
-                      db.collection("chats")
-                          .doc(doc.id)
-                          .collection("messages")
-                          .add(deletemessage);
-                    });
+                return Promise.all(query.docs.map(async (doc) => {
+                  const collection = "chats/"+doc.id+"/messages";
+                  console.log("Attempting delete for : " + collection);
+                  const query = db.collection(collection).where("user",
+                      "==", userId);
+                  await deleteQueryResults(db,
+                      query, batchSize)
+                      .then((val) => {
+                        console.log("Deleted messages on own chat: " +
+                            val);
+                      })
+                      .catch((err) => {
+                        console.log("Error in promise " + err);
+                      });
+                  const users = doc.data().users;
+                  const index = users.indexOf(userId, 0);
+                  const deletemessage = {
+                    "message": "This user deleted his account",
+                    "user": "DELETED",
+                    "timestamp": firestore.Timestamp.now()};
+                  users[index] = "DELETED";
+                  await db.collection("chats")
+                      .doc(doc.id)
+                      .set({"status": doc.data().status, "read": [],
+                        "users": users, "lastMessage": deletemessage});
+                  await db.collection("chats")
+                      .doc(doc.id)
+                      .collection("messages")
+                      .add(deletemessage);
+                }));
               }
           )
           .catch((err) => console.log("Error in query " + err));
@@ -184,7 +181,7 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
       // delete image
       const defaultBucket = admin.storage().bucket();
       const file = defaultBucket.file("profilePics/" + userId + ".jpg");
-      file.delete()
+      await file.delete()
           .then(() => console.log("deleted profile pic"))
           .catch((err) => console.log("error deleting profile pic: " + err));
 
@@ -206,7 +203,7 @@ exports.initializeUser = functions.region("europe-west1").firestore
     .onCreate((snap, context) => {
       const db = admin.firestore();
       const payload = {"coins": 5};
-      db.collection("users")
+      return db.collection("users")
           .doc(snap.id)
           .update(payload)
           .then(() => console.log("Initialized user " + snap.id))
