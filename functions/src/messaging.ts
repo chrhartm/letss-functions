@@ -78,7 +78,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                       type: "message",
                     },
                   };
-                  console.log("Sending message to " + afterU.name +
+                  console.log("Sending message to " + beforeU.name +
                       ": " + payload);
                   return admin.messaging()
                       .sendToDevice(beforeU.token.token, payload)
