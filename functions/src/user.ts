@@ -141,6 +141,13 @@ async function deleteUser(userId: string) {
   await defaultBucket.deleteFiles({prefix: "profilePics/" + userId})
       .then(() => console.log("deleted all files"))
       .catch((err) => console.log("error deleting profile pics: " + err));
+  // delete person
+  await db.collection("persons")
+      .doc(userId)
+      .delete()
+      .catch(() => {
+        return {code: 500, message: "Couldn't delete person"};
+      });
   // delete user
   await db.collection("users")
       .doc(userId)

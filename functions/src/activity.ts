@@ -84,13 +84,17 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
 
       console.log("userid: " + userid);
 
-      // TODO select only relevant fields (not pic)
-      const userinfo = (await db.collection("users")
+      const userInfo = (await db.collection("users")
           .doc(userid).get()).data();
-      if (userinfo == null) {
-        return {code: 500, message: "Couldn't find user id"};
+      if (userInfo == null) {
+        return {code: 500, message: "Couldn't find user"};
       }
-      let lastSearch = userinfo!.lastSearch;
+      const personInfo = (await db.collection("persons")
+          .doc(userid).get()).data();
+      if (personInfo == null) {
+        return {code: 500, message: "Couldn't find person"};
+      }
+      let lastSearch = userInfo!.lastSearch;
       if ((lastSearch != null) && (admin.firestore.Timestamp.now().toMillis() -
           lastSearch.toMillis()) < (1000 * 60 * 60)) {
         return {code: 429, message: "Already requested within last hour"};
@@ -99,7 +103,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
         lastSearch = admin.firestore.Timestamp.fromMillis(0);
       }
       const activities = new Set();
-      for (const category of userinfo!.interests) {
+      for (const category of personInfo!.interests) {
         // TODO filter by location
         await db.collection("activities")
             .where("status", "==", "ACTIVE")
