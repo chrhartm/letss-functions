@@ -3,15 +3,16 @@ import admin = require("firebase-admin");
 import {firestore} from "firebase-admin";
 import utils = require("./utils");
 
-exports.initializeUser = functions.region("europe-west1").firestore
-    .document("/users/{userId}")
-    .onCreate((snap, context) => {
+// TODO .region not needed?
+exports.initializeUser = functions.auth
+    .user()
+    .onCreate(async (user, context) => {
       const db = admin.firestore();
       const payload = {"coins": 5};
       return db.collection("users")
-          .doc(snap.id)
-          .update(payload)
-          .then(() => console.log("Initialized user " + snap.id))
+          .doc(user.uid)
+          .set(payload, {merge: true})
+          .then(() => console.log("Initialized user " + user.uid))
           .catch((err) => console.log("Error: " + err));
     });
 
