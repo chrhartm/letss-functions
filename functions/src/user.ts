@@ -114,18 +114,21 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
                 return Promise.all(query.docs.map(
                     async (doc) => {
                       const data = doc.data();
-                      if (data.status == "LIKE") {
-                        await db.collection("activities")
-                            .doc(data.activity)
-                            .collection("likes")
-                            .doc(userId)
-                            .delete()
-                            .then(() => console.log(
-                                "deleted like for activity: " + data.activity))
-                            .catch((err) => console.log(
-                                "failed to delete like for activity: " +
-                                data.activity + " " + err));
-                      }
+                      // Don't filter on like because user
+                      // could have first liked and then passed
+                      // activity (eg after following link)
+                      // if (data.status == "LIKE") {
+                      await db.collection("activities")
+                          .doc(data.activity)
+                          .collection("likes")
+                          .doc(userId)
+                          .delete()
+                          .then(() => console.log(
+                              "deleted like for activity: " + data.activity))
+                          .catch((err) => console.log(
+                              "failed to delete like for activity: " +
+                              data.activity + " " + err));
+                      // }
                       await db.collection("matches")
                           .doc(doc.id)
                           .delete();
