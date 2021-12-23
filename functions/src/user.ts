@@ -181,13 +181,11 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
           .catch(() => {
             return {code: 500, message: "Couldn't delete notifications"};
           });
-      // delete image
+      // delete images
       const defaultBucket = admin.storage().bucket();
-      const file = defaultBucket.file("profilePics/" + userId + ".jpg");
-      await file.delete()
-          .then(() => console.log("deleted profile pic"))
-          .catch((err) => console.log("error deleting profile pic: " + err));
-
+      await defaultBucket.deleteFiles({prefix: "profilePics/" + userId})
+        .then(() => console.log("deleted all files"))
+        .catch((err) => console.log("error deleting profile pics: " + err));
       // delete user
       await db.collection("users")
           .doc(userId)
