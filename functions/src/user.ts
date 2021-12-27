@@ -8,7 +8,9 @@ exports.initializeUser = functions.auth
     .user()
     .onCreate(async (user, context) => {
       const db = admin.firestore();
-      const payload = {"coins": 5};
+      const payload = {"coins": 5,
+        "lastSupportRequest": firestore.Timestamp.now(),
+        "lastOnline": firestore.Timestamp.now()};
       return db.collection("users")
           .doc(user.uid)
           .set(payload, {merge: true})
