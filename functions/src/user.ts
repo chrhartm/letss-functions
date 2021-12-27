@@ -3,14 +3,146 @@ import admin = require("firebase-admin");
 import {firestore} from "firebase-admin";
 import utils = require("./utils");
 
-// TODO .region not needed?
+exports.subscribe = functions.region("europe-west1")
+    .https.onCall(
+        async (data, context) => {
+          const userId = (context.auth && context.auth.uid)!;
+          const db = admin.firestore();
+          const badge = data.badge;
+
+          console.log("userid: " + userId);
+          console.log("badge: " + badge);
+
+          try {
+            await db.collection("users")
+                .doc(userId)
+                .update({"badge": badge});
+          } catch (error) {
+            return {code: 500, message: "Couldn't update user"};
+          }
+          try {
+            await db.collection("persons")
+                .doc(userId)
+                .update({"badge": badge});
+          } catch (error) {
+            console.log("couldn't update badge in person " + error);
+            return {code: 500, message: "Couldn't update person"};
+          }
+          return {code: 200, message: "Subscribed user"};
+        });
+
+exports.markReviewRequested = functions.region("europe-west1")
+    .https.onCall(
+        async (data, context) => {
+          const userId = (context.auth && context.auth.uid)!;
+          const db = admin.firestore();
+
+          console.log("userid: " + userId);
+
+          try {
+            await db.collection("users")
+                .doc(userId)
+                .update({"requestedReview": firestore.Timestamp.now()});
+          } catch (error) {
+            return {code: 500, message: "Couldn't update user"};
+          }
+          return {code: 200, message: "Updated user"};
+        });
+
+exports.markSupportRequested = functions.region("europe-west1")
+    .https.onCall(
+        async (data, context) => {
+          const userId = (context.auth && context.auth.uid)!;
+          const db = admin.firestore();
+
+          console.log("userid: " + userId);
+
+          try {
+            await db.collection("users")
+                .doc(userId)
+                .update({"lastSupportRequest": firestore.Timestamp.now()});
+          } catch (error) {
+            return {code: 500, message: "Couldn't update user"};
+          }
+          return {code: 200, message: "Updated user"};
+        });
+
+exports.updateLastOnline = functions.region("europe-west1")
+    .https.onCall(
+        async (data, context) => {
+          const userId = (context.auth && context.auth.uid)!;
+          const db = admin.firestore();
+
+          console.log("userid: " + userId);
+
+          try {
+            await db.collection("users")
+                .doc(userId)
+                .update({"lastOnline": firestore.Timestamp.now()});
+          } catch (error) {
+            return {code: 500, message: "Couldn't update user"};
+          }
+          return {code: 200, message: "Updated user"};
+        });
+
+exports.updateToken = functions.region("europe-west1")
+    .https.onCall(
+        async (data, context) => {
+          const userId = (context.auth && context.auth.uid)!;
+          const db = admin.firestore();
+          const token = data.token;
+          if (token == null) {
+            return {code: 500, message: "No token provided"};
+          }
+
+          console.log("userid: " + userId);
+
+          try {
+            await db.collection("users")
+                .doc(userId)
+                .update({"token": {"token": token,
+                  "timestamp": firestore.Timestamp.now()}});
+          } catch (error) {
+            return {code: 500, message: "Couldn't update user"};
+          }
+          return {code: 200, message: "Updated user"};
+        });
+
+exports.validatePerson = functions.region("europe-west1").firestore
+    .document("/persons/{personId}")
+    .onUpdate((change, _) => {
+      const db = admin.firestore();
+      const uid = change.after.id;
+      const afterP = change.after.data();
+      return db.collection("users").doc(uid)
+          .get().then((document) => {
+            if (document.exists == false) {
+              console.log("Couldn't find user: " + uid);
+              return null;
+            }
+            const user = document.data()!;
+            if (user.badge == afterP.badge) {
+              console.log("Nothing to do for : " + uid);
+              return null;
+            } else {
+              return db.collection("persons")
+                  .doc(uid)
+                  .update({"badge": user.badge}).then(() => {
+                    console.log("Updated badge for " + uid);
+                    return null;
+                  });
+            }
+          });
+    });
+
 exports.initializeUser = functions.auth
     .user()
     .onCreate(async (user, context) => {
       const db = admin.firestore();
       const payload = {"coins": 5,
         "lastSupportRequest": firestore.Timestamp.now(),
-        "lastOnline": firestore.Timestamp.now()};
+        "lastOnline": firestore.Timestamp.now(),
+        "badge": ""};
       return db.collection("users")
           .doc(user.uid)
           .set(payload, {merge: true})
