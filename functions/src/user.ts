@@ -3,20 +3,35 @@ import admin = require("firebase-admin");
 import {firestore} from "firebase-admin";
 import utils = require("./utils");
 
-exports.subscribe = functions.region("europe-west1")
+exports.updateSubscription = functions.region("europe-west1")
     .https.onCall(
         async (data, context) => {
           const userId = (context.auth && context.auth.uid)!;
           const db = admin.firestore();
-          const badge = data.badge;
+          const productId = data.productId;
+          const storeId = data.store + "Id";
+          let badge = "";
+          let badgeId = "";
 
           console.log("userid: " + userId);
-          console.log("badge: " + badge);
+          console.log("productId: " + productId);
+          console.log("storeId: " + storeId);
 
+          try {
+            await db.collection("badges")
+                .where(storeId, "==", productId)
+                .get()
+                .then((query) => {
+                  badge = query.docs[0].data()!.badge;
+                  badgeId = query.docs[0].id!;
+                });
+          } catch (error) {
+            return {code: 500, message: "Couldn't find badge"};
+          }
           try {
             await db.collection("users")
                 .doc(userId)
-                .update({"badge": badge});
+                .update({"badgeId": badgeId});
           } catch (error) {
             return {code: 500, message: "Couldn't update user"};
           }
@@ -125,11 +140,16 @@ exports.validatePerson = functions.region("europe-west1").firestore
               console.log("Nothing to do for : " + uid);
               return null;
             } else {
-              return db.collection("persons")
-                  .doc(uid)
-                  .update({"badge": user.badge}).then(() => {
-                    console.log("Updated badge for " + uid);
-                    return null;
+              return db.collection("badges")
+                  .doc(user.badgeId)
+                  .get()
+                  .then((badge) => {
+                    return db.collection("persons")
+                        .doc(uid)
+                        .update({"badge": badge.data()!.badge}).then(() => {
+                          console.log("Updated badge for " + uid);
+                          return null;
+                        });
                   });
             }
           });
@@ -142,7 +162,7 @@ exports.initializeUser = functions.auth
       const payload = {"coins": 5,
         "lastSupportRequest": firestore.Timestamp.now(),
         "lastOnline": firestore.Timestamp.now(),
-        "badge": ""};
+        "badgeId": ""};
       return db.collection("users")
           .doc(user.uid)
           .set(payload, {merge: true})
