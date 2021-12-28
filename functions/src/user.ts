@@ -9,21 +9,19 @@ exports.updateSubscription = functions.region("europe-west1")
           const userId = (context.auth && context.auth.uid)!;
           const db = admin.firestore();
           const productId = data.productId;
-          const storeId = data.store + "Id";
+          const timestamp = data.timestamp;
           let badge = "";
-          let badgeId = "";
 
           console.log("userid: " + userId);
           console.log("productId: " + productId);
-          console.log("storeId: " + storeId);
+          console.log("timestamp: " + timestamp);
 
           try {
             await db.collection("badges")
-                .where(storeId, "==", productId)
+                .doc(productId)
                 .get()
-                .then((query) => {
-                  badge = query.docs[0].data()!.badge;
-                  badgeId = query.docs[0].id!;
+                .then((doc) => {
+                  badge = doc.data()!.badge;
                 });
           } catch (error) {
             return {code: 500, message: "Couldn't find badge"};
@@ -31,7 +29,8 @@ exports.updateSubscription = functions.region("europe-west1")
           try {
             await db.collection("users")
                 .doc(userId)
-                .update({"badgeId": badgeId});
+                .update({"subscription":
+                    {"productId": productId, "timestamp": timestamp}});
           } catch (error) {
             return {code: 500, message: "Couldn't update user"};
           }
@@ -141,7 +140,7 @@ exports.validatePerson = functions.region("europe-west1").firestore
               return null;
             } else {
               return db.collection("badges")
-                  .doc(user.badgeId)
+                  .doc(user.subscription.productId)
                   .get()
                   .then((badge) => {
                     return db.collection("persons")
@@ -162,7 +161,8 @@ exports.initializeUser = functions.auth
       const payload = {"coins": 5,
         "lastSupportRequest": firestore.Timestamp.now(),
         "lastOnline": firestore.Timestamp.now(),
-        "badgeId": ""};
+        "subscription":
+            {"productId": "none", "timestamp": firestore.Timestamp.now()}};
       return db.collection("users")
           .doc(user.uid)
           .set(payload, {merge: true})
