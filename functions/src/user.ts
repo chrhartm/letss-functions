@@ -9,7 +9,7 @@ exports.updateSubscription = functions.region("europe-west1")
           const userId = (context.auth && context.auth.uid)!;
           const db = admin.firestore();
           const productId = data.productId;
-          const timestamp = data.timestamp;
+          const timestamp = new Date(data.timestamp);
           let badge = "";
 
           console.log("userid: " + userId);
