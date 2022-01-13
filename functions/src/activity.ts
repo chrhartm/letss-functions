@@ -79,6 +79,7 @@ exports.like = functions.region("europe-west1").https.onCall(
 exports.generateMatches = functions.region("europe-west1").https.onCall(
     async (data, context) => {
       const N = 30;
+      const minN = 100;
       const userid = (context.auth && context.auth.uid)!;
       const db = admin.firestore();
 
@@ -123,11 +124,15 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       }
       // add some without interest filter
       // in case interests are too specific
+      let n = minN - activities.size;
+      if (n < N) {
+        n = N;
+      }
       await db.collection("activities")
           .where("status", "==", "ACTIVE")
           .where("timestamp", ">", lastSearch)
           .orderBy("timestamp", "desc")
-          .limit(N)
+          .limit(n)
           .select("user")
           .get()
           .then((querySnapshot) => {
