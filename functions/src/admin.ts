@@ -16,10 +16,10 @@ exports.bootstrapDb = functions.region("europe-west1").https
         "gender": "",
         "interests": [],
         "dob": admin.firestore.Timestamp.now()};
-      await db.collection("users")
+      await db.collection("persons")
           .doc("DELETED")
           .set(payload)
-          .catch((err) => res.status(500).send("Failed adding user"));
+          .catch((err) => res.status(500).send("Failed adding person"));
 
       const countries = ["NL", "DE"];
 

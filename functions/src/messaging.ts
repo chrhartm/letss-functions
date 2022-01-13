@@ -6,13 +6,13 @@ exports.pushOnLike = functions.region("europe-west1").firestore
     .onCreate((snap, context) => {
       const db = admin.firestore();
       const like = snap.data();
-      return db.collection("users").doc(snap.id)
+      return db.collection("persons").doc(snap.id)
           .get().then((senderDoc) => {
             if (senderDoc.exists == false) {
               console.log("Couldn't find user: " + snap.id);
               return null;
             }
-            const sender = senderDoc.data()!;
+            const senderP = senderDoc.data()!;
             return db.collection("activities").doc(context.params.activityId)
                 .get().then((activity) => {
                   if (activity.exists == false) {
@@ -27,18 +27,19 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                               activity.data()!.user);
                           return null;
                         }
-                        const receiver = receiverDoc.data()!;
+                        const receiverU = receiverDoc.data()!;
                         const payload = {
                           notification: {
-                            title: sender.name,
+                            title: senderP.name,
                             body: like.message,
                             type: "like",
                           },
                         };
-                        console.log("Sending message to " + receiver.name +
+                        console.log("Sending message to " +
+                            activity.data()!.user +
                             ": " + payload);
                         return admin.messaging()
-                            .sendToDevice(receiver.token.token, payload)
+                            .sendToDevice(receiverU.token.token, payload)
                             .then((response) => console.log(response.results));
                       });
                 });
@@ -62,23 +63,24 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
               return null;
             }
             const beforeU = document.data()!;
-            return admin.firestore().collection("users")
+            return admin.firestore().collection("persons")
                 .doc(afterM.lastMessage.user)
                 .get().then((document) => {
                   if (document.exists == false) {
-                    console.log("Couldn't find user: " +
+                    console.log("Couldn't find person: " +
                         afterM.lastMessage.user);
                     return null;
                   }
-                  const afterU = document.data()!;
+                  const afterP = document.data()!;
                   const payload = {
                     notification: {
-                      title: afterU.name,
+                      title: afterP.name,
                       body: afterM.lastMessage.message,
                       type: "message",
                     },
                   };
-                  console.log("Sending message to " + afterU.name +
+                  console.log("Sending message to " +
+                      beforeM.lastMessage.user +
                       ": " + payload);
                   return admin.messaging()
                       .sendToDevice(beforeU.token.token, payload)
