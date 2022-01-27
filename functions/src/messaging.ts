@@ -34,8 +34,8 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         }
                         const receiverU = receiverDoc.data()!;
                         const now = admin.firestore.Timestamp.now().seconds;
-                        const daysUnopened = 60*60*24*3 + now;
-                        const daysOpened = 60*60*24 + now;
+                        const limitUnopened = now - 60*60*24*3;
+                        const limitOpened = now - 60*60*24;
                         const lastEmail = receiverU.lastEmail==null?null:
                             receiverU.lastEmail.seconds;
                         const lastOnline = receiverU.lastOnline.seconds;
@@ -60,9 +60,10 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                               // last was sent > 3 days ago or
                               // last was sent > 1 day ago and opened app
                               if (lastEmail != null &&
-                                (!(lastOnline > lastEmail &&
-                                  lastEmail > daysOpened) &&
-                                (lastEmail < daysUnopened))) {
+                                (((lastOnline > lastEmail) &&
+                                  (lastEmail > limitOpened)) ||
+                                 ((lastOnline <= lastEmail) &&
+                                  (lastEmail > limitUnopened)))) {
                                 return null;
                               }
                               // Get user email
@@ -71,8 +72,10 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                     // Send email
                                     return sendEmail(
                                         "d-93478b18f7ee4935b554dea49749663e",
+                                        "Letss",
                                         "noreply@letss.app",
                                         userRecord.email!,
+                                        17654,
                                         {name: senderP.name as string,
                                           activity:
                                             activity.data()!.name as string,
@@ -87,7 +90,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                               .doc(activity.data()!.user)
                                               .update({lastEmail:
                                                 admin.firestore.Timestamp
-                                                    .fromMillis(now)})
+                                                    .now()})
                                               .then((response) => {
                                                 console.log("Updated user",
                                                     response);
@@ -147,20 +150,30 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
 /**
    * Send an email
    * @param {string} templateId - sendGrid template ID
+   * @param {string} fromName - sender name
    * @param {string} fromAddress - sender address
    * @param {string} toAddress - address to send to
+   * @param {string} unsubscribeId - unsubscribe ID
    * @param {any} data - data to be sent as json
    * @return {function} - Some function
    */
 async function sendEmail(templateId: string,
+    fromName: string,
     fromAddress: string,
     toAddress: string,
+    unsubscribeId: number,
     data: any) {
   sendGridClient.setApiKey(functions.config().sendgrid.key);
 
   const mailData = {
     to: toAddress,
-    from: fromAddress,
+    asm: {
+      groupId: unsubscribeId,
+    },
+    from: {
+      email: fromAddress,
+      name: fromName,
+    },
     templateId: templateId,
     dynamic_template_data: data,
   };
