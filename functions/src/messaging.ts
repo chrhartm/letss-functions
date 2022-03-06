@@ -146,6 +146,27 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
           });
     });
 
+exports.alertOnFlag = functions.region("europe-west1").firestore
+    .document("/flags/{flagId}")
+    .onCreate((snap, context) => {
+      const flag = snap.data();
+      // Get data on sender
+      return sendEmail(
+          "d-789ed3810f334d018085cdc8d0fc959b",
+          "Letss",
+          "noreply@letss.app",
+          "support@letss.app",
+          17678,
+          {message: flag.message as string,
+            flagId: snap.id as string,
+          })
+          .then((response) => {
+            console.log(
+                "Successfully sent email:",
+                response);
+          });
+    });
+
 // requires firebase functions:config:set sendgrid.key="KEY"
 /**
    * Send an email
