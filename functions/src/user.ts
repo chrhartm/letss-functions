@@ -161,6 +161,7 @@ exports.initializeUser = functions.auth
       const payload = {"coins": 5,
         "lastSupportRequest": firestore.Timestamp.now(),
         "lastOnline": firestore.Timestamp.now(),
+        "status": "ACTIVE",
         "subscription":
             {"productId": "none", "timestamp": firestore.Timestamp.now()}};
       return db.collection("users")
