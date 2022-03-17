@@ -80,6 +80,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
     async (data, context) => {
       const N = 30;
       const minN = 100;
+      const minutes = 1;
       const userid = (context.auth && context.auth.uid)!;
       const db = admin.firestore();
 
@@ -97,7 +98,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       }
       let lastSearch = userInfo!.lastSearch;
       if ((lastSearch != null) && (admin.firestore.Timestamp.now().toMillis() -
-          lastSearch.toMillis()) < (1000 * 60 * 60)) {
+          lastSearch.toMillis()) < (1000 * 60 * minutes)) {
         return {code: 429, message: "Already requested within last hour"};
       }
       if (lastSearch == null) {
