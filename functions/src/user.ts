@@ -269,7 +269,7 @@ async function deleteUser(userId: string) {
               const users = doc.data().users;
               const index = users.indexOf(userId, 0);
               const deletemessage = {
-                "message": "This user deleted his account",
+                "message": "This user deleted their account",
                 "user": "DELETED",
                 "timestamp": firestore.Timestamp.now()};
               users[index] = "DELETED";
