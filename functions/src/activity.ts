@@ -106,9 +106,9 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       }
       const activities = new Set();
       for (const category of personInfo!.interests) {
-        // TODO filter by location
         await db.collection("activities")
             .where("status", "==", "ACTIVE")
+            .where("location.locality", "==", personInfo!.location.locality)
             .where("timestamp", ">", lastSearch)
             .where("categories", "array-contains", category)
             .orderBy("timestamp", "desc")
@@ -135,6 +135,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       }
       await db.collection("activities")
           .where("status", "==", "ACTIVE")
+          .where("location.locality", "==", personInfo!.location.locality)
           .where("timestamp", ">", lastSearch)
           .orderBy("timestamp", "desc")
           .limit(n)
