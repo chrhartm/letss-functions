@@ -14,6 +14,12 @@ exports.like = functions.region("europe-west1").https.onCall(
         "status": "ACTIVE",
         "timestamp": firestore.Timestamp.now(),
         "read": false};
+      const match = {
+        "timestamp": firestore.Timestamp.now(),
+        "status": "LIKE",
+        "activity": activityId,
+        "user": userId,
+      }
 
       console.log("userid: " + userId);
       console.log("activityId: " + activityId);
@@ -38,8 +44,7 @@ exports.like = functions.region("europe-west1").https.onCall(
             .doc(matchId)
             // set with all details in case it's coming from a link
             // (needed as audit trail for deleting later)
-            .set({"activity": activityId, "user": userId,
-              "status": "LIKE"}, {merge: true});
+            .set(match, {merge: true});
       } catch (error) {
         return {code: 500, message: "Couldn't update matches"};
       }
