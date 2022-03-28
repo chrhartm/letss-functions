@@ -18,8 +18,7 @@ exports.like = functions.region("europe-west1").https.onCall(
         "timestamp": firestore.Timestamp.now(),
         "status": "LIKE",
         "activity": activityId,
-        "user": userId,
-      }
+        "user": userId};
 
       console.log("userid: " + userId);
       console.log("activityId: " + activityId);
