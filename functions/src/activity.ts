@@ -84,7 +84,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
     async (data, context) => {
       const N = 30;
       const minN = 100;
-      const minutes = 1;
+      const waitSeconds = 10;
       const userid = (context.auth && context.auth.uid)!;
       const db = admin.firestore();
 
@@ -101,10 +101,12 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
         return {code: 500, message: "Couldn't find person"};
       }
       let lastSearch = userInfo!.lastSearch;
+
       if ((lastSearch != null) && (admin.firestore.Timestamp.now().toMillis() -
-          lastSearch.toMillis()) < (1000 * 60 * minutes)) {
-        return {code: 429, message: "Already requested within last hour"};
+          lastSearch.toMillis()) < (1000 * waitSeconds)) {
+        return {code: 429, message: "Already requested recently"};
       }
+
       if (lastSearch == null) {
         lastSearch = admin.firestore.Timestamp.fromMillis(0);
       }
@@ -164,7 +166,21 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       console.log("after user update");
 
       if (activities.size == 0) {
-        return {code: 204, message: "No new activities available"};
+        // Get matches that were most recently passed if no activities
+        await db.collection("matches")
+            .where("status", "==", "PASS")
+            .where("user", "==", userid)
+            .orderBy("timestamp", "desc")
+            .limit(N)
+            .get()
+            .then((querySnapshot) => {
+              querySnapshot.forEach((doc) => {
+                activities.add(doc.data()["activity"]);
+              });
+            });
+        if (activities.size == 0) {
+          return {code: 204, message: "No new activities available"};
+        }
       }
 
       console.log("before batch");
