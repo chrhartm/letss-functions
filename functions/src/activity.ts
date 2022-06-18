@@ -101,7 +101,10 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
         return {code: 500, message: "Couldn't find person"};
       }
       const locality = personInfo.location.locality;
-      let lastSearch = userInfo!.lastSearch[locality];
+      let lastSearch = null;
+      if (userInfo!.lastSearch != null) {
+        lastSearch = userInfo!.lastSearch[locality];
+      }
 
       if ((lastSearch != null) && (admin.firestore.Timestamp.now().toMillis() -
           lastSearch.toMillis()) < (1000 * waitSeconds)) {
