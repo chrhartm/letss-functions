@@ -185,9 +185,10 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
 
       console.log("before batch");
       const batch = db.batch();
+      // TODO should this be activity location?
       activities.forEach((doc) => {
         const data = {activity: doc, user: userid, status: "NEW",
-          timestamp: now};
+          timestamp: now, location: personInfo!.location};
         batch.set(db.collection("matches").doc(doc+"_"+userid), data);
       });
       await batch.commit();
