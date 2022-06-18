@@ -171,6 +171,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
         await db.collection("matches")
             .where("status", "==", "PASS")
             .where("user", "==", userid)
+            .where("location.locality", "==", locality)
             .orderBy("timestamp", "desc")
             .limit(N)
             .get()
