@@ -100,7 +100,8 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       if (personInfo == null) {
         return {code: 500, message: "Couldn't find person"};
       }
-      let lastSearch = userInfo!.lastSearch;
+      const locality = personInfo.location.locality;
+      let lastSearch = userInfo!.lastSearch[locality];
 
       if ((lastSearch != null) && (admin.firestore.Timestamp.now().toMillis() -
           lastSearch.toMillis()) < (1000 * waitSeconds)) {
@@ -114,7 +115,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       for (const category of personInfo!.interests) {
         await db.collection("activities")
             .where("status", "==", "ACTIVE")
-            .where("location.locality", "==", personInfo!.location.locality)
+            .where("location.locality", "==", locality)
             .where("timestamp", ">", lastSearch)
             .where("categories", "array-contains", category)
             .orderBy("timestamp", "desc")
@@ -141,7 +142,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       }
       await db.collection("activities")
           .where("status", "==", "ACTIVE")
-          .where("location.locality", "==", personInfo!.location.locality)
+          .where("location.locality", "==", locality)
           .where("timestamp", ">", lastSearch)
           .orderBy("timestamp", "desc")
           .limit(n)
@@ -162,7 +163,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
 
       const now = admin.firestore.Timestamp.now();
       await db.collection("users").doc(userid)
-          .update({lastSearch: now});
+          .update({[`lastSearch.${locality}`]: now});
       console.log("after user update");
 
       if (activities.size == 0) {
