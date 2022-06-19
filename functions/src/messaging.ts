@@ -1,7 +1,6 @@
 import functions = require("firebase-functions");
 import admin = require("firebase-admin");
-import sendGridClient = require("@sendgrid/mail");
-
+import utils = require("./utils");
 
 exports.pushOnLike = functions.region("europe-west1").firestore
     .document("/activities/{activityId}/likes/{likeId}")
@@ -70,7 +69,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                               return admin.auth().getUser(activity.data()!.user)
                                   .then((userRecord) => {
                                     // Send email
-                                    return sendEmail(
+                                    return utils.sendEmail(
                                         "d-93478b18f7ee4935b554dea49749663e",
                                         "Letss",
                                         "noreply@letss.app",
@@ -151,7 +150,7 @@ exports.alertOnFlag = functions.region("europe-west1").firestore
     .onCreate((snap, context) => {
       const flag = snap.data();
       // Get data on sender
-      return sendEmail(
+      return utils.sendEmail(
           "d-789ed3810f334d018085cdc8d0fc959b",
           "Letss",
           "noreply@letss.app",
@@ -166,38 +165,3 @@ exports.alertOnFlag = functions.region("europe-west1").firestore
                 response);
           });
     });
-
-// requires firebase functions:config:set sendgrid.key="KEY"
-/**
-   * Send an email
-   * @param {string} templateId - sendGrid template ID
-   * @param {string} fromName - sender name
-   * @param {string} fromAddress - sender address
-   * @param {string} toAddress - address to send to
-   * @param {string} unsubscribeId - unsubscribe ID
-   * @param {any} data - data to be sent as json
-   * @return {function} - Some function
-   */
-async function sendEmail(templateId: string,
-    fromName: string,
-    fromAddress: string,
-    toAddress: string,
-    unsubscribeId: number,
-    data: any) {
-  sendGridClient.setApiKey(functions.config().sendgrid.key);
-
-  const mailData = {
-    to: toAddress,
-    asm: {
-      groupId: unsubscribeId,
-    },
-    from: {
-      email: fromAddress,
-      name: fromName,
-    },
-    templateId: templateId,
-    dynamic_template_data: data,
-  };
-  return sendGridClient.send(mailData);
-}
-

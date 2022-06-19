@@ -128,31 +128,100 @@ exports.validatePerson = functions.region("europe-west1").firestore
       const db = admin.firestore();
       const uid = change.after.id;
       const afterP = change.after.data();
-      return db.collection("users").doc(uid)
-          .get().then((document) => {
-            if (document.exists == false) {
-              console.log("Couldn't find user: " + uid);
-              return null;
-            }
-            const user = document.data()!;
-            if (user.badge == afterP.badge) {
-              console.log("Nothing to do for : " + uid);
-              return null;
-            } else {
-              return db.collection("badges")
-                  .doc(user.subscription.productId)
-                  .get()
-                  .then((badge) => {
-                    return db.collection("persons")
-                        .doc(uid)
-                        .update({"badge": badge.data()!.badge}).then(() => {
-                          console.log("Updated badge for " + uid);
-                          return null;
-                        });
-                  });
-            }
-          });
+      return sendEmailOnJoin(change).then(() => {
+        return db.collection("users").doc(uid)
+            .get().then((document) => {
+              if (document.exists == false) {
+                console.log("Couldn't find user: " + uid);
+                return null;
+              }
+              const user = document.data()!;
+              if (user.badge == afterP.badge) {
+                console.log("Nothing to do for : " + uid);
+                return null;
+              } else {
+                return db.collection("badges")
+                    .doc(user.subscription.productId)
+                    .get()
+                    .then((badge) => {
+                      return db.collection("persons")
+                          .doc(uid)
+                          .update({"badge": badge.data()!.badge}).then(() => {
+                            console.log("Updated badge for " + uid);
+                            return null;
+                          });
+                    });
+              }
+            });
+      });
     });
+
+/**
+   * Send an email on join
+   * @param {functions.Change<functions.firestore.QueryDocumentSnapshot>}
+   * change - change
+   * @return {function} - Some function
+   */
+async function sendEmailOnJoin(change:
+    functions.Change<functions.firestore.QueryDocumentSnapshot>) {
+  // Check if location changed from null to something
+  const before = change.before.data();
+  const after = change.after.data();
+  const uid = change.after.id;
+
+  if (before.location != null || after.location == null) {
+    return;
+  }
+
+  const db = admin.firestore();
+  let count = 1;
+
+  const counterPath = db.collection("stats")
+      .doc(after.location["isoCountryCode"])
+      .collection("localities")
+      .doc(after.location["locality"]);
+  await counterPath.get().then((doc) => {
+    if (doc.exists) {
+      count = doc.data()!.count + 1;
+      return counterPath.update({
+        "count": firestore.FieldValue.increment(1),
+      });
+    } else {
+      return counterPath.set({
+        "count": 1,
+      });
+    }
+  });
+
+  return db.collection("persons")
+      .doc(uid)
+      .get()
+      .then((document) => {
+        if (document.exists == false) {
+          console.log("Couldn't find person: " + uid);
+          return null;
+        }
+        const personData = document.data()!;
+
+        return admin.auth().getUser(uid)
+            .then((userRecord) => {
+              // Send email
+              return utils.sendEmail(
+                  "d-d71b1d7a1c124966ad24a08580066d90",
+                  "Letss",
+                  "noreply@letss.app",
+                  userRecord.email!,
+                  18546,
+                  {name: personData.name as string,
+                    count: count as number,
+                    locality: after.location["locality"] as string,
+                    link: "https://letss.page.link/myactivities",
+                  }).then((response) => console.log(
+                  "Successfully sent email:", response)
+              );
+            });
+      });
+}
 
 exports.initializeUser = functions.auth
     .user()

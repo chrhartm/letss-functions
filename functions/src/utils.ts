@@ -1,3 +1,6 @@
+import sendGridClient = require("@sendgrid/mail");
+import functions = require("firebase-functions");
+
 /**
  * Copied from https://firebase.google.com/docs/firestore/manage-data/delete-data
  * @param {FirebaseFirestore.Firestore} db - db
@@ -65,4 +68,38 @@ async function deleteQueryBatch(
   process.nextTick(() => {
     deleteQueryBatch(db, query, resolve);
   });
+}
+
+// requires firebase functions:config:set sendgrid.key="KEY"
+/**
+   * Send an email
+   * @param {string} templateId - sendGrid template ID
+   * @param {string} fromName - sender name
+   * @param {string} fromAddress - sender address
+   * @param {string} toAddress - address to send to
+   * @param {string} unsubscribeId - unsubscribe ID
+   * @param {any} data - data to be sent as json
+   * @return {function} - Some function
+   */
+export async function sendEmail(templateId: string,
+    fromName: string,
+    fromAddress: string,
+    toAddress: string,
+    unsubscribeId: number,
+    data: any) {
+  sendGridClient.setApiKey(functions.config().sendgrid.key);
+
+  const mailData = {
+    to: toAddress,
+    asm: {
+      groupId: unsubscribeId,
+    },
+    from: {
+      email: fromAddress,
+      name: fromName,
+    },
+    templateId: templateId,
+    dynamic_template_data: data,
+  };
+  return sendGridClient.send(mailData);
 }
