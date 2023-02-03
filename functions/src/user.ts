@@ -99,6 +99,40 @@ exports.updateLastOnline = functions.region("europe-west1")
           return {code: 200, message: "Updated user"};
         });
 
+exports.getConfig = functions.region("europe-west1")
+    .https.onCall(
+        async (data, context) => {
+          const userId = (context.auth && context.auth.uid)!;
+          const db = admin.firestore();
+          let forceAddActivity = false;
+
+          console.log("userid: " + userId);
+
+          try {
+            await db.collection("persons")
+                .doc(userId)
+                .get().then((doc) => {
+                  const personData = doc.data()!;
+                  const locality = personData.location.locality;
+                  if (locality == "Amsterdam") {
+                    forceAddActivity = true;
+                  }
+                });
+          } catch (error) {
+            console.log("error: " + error);
+          }
+          const returnData = {
+            "forceAddActivity": forceAddActivity,
+            "activityAddPromptEveryTenX": 2,
+            "minChatsForReview": 3,
+            "searchDays": 0,
+            "supportPitch": "Enjoying our app? Buy us a coffee and" +
+              " get a supporter badge on your profile.",
+            "supportRequestInterval": 360,
+          };
+          return {code: 200, data: JSON.stringify(returnData)};
+        });
+
 exports.updateToken = functions.region("europe-west1")
     .https.onCall(
         async (data, context) => {
