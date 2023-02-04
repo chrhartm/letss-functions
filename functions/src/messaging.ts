@@ -12,7 +12,8 @@ exports.pushOnLike = functions.region("europe-west1").firestore
           .get().then((senderDoc) => {
             if (senderDoc.exists == false) {
               console.log("Couldn't find person: " + snap.id);
-              return null;
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find person.");
             }
             const senderP = senderDoc.data()!;
             // Get data on activity
@@ -21,7 +22,8 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                   if (activity.exists == false) {
                     console.log("Couldn't find activity: " +
                         context.params.activityId);
-                    return null;
+                    throw new functions.https.HttpsError("not-found",
+                        "Couldn't find activity.");
                   }
                   // Get data on receiver
                   return db.collection("users").doc(activity.data()!.user)
@@ -29,7 +31,8 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         if (receiverDoc.exists == false) {
                           console.log("Couldn't find user: " +
                               activity.data()!.user);
-                          return null;
+                          throw new functions.https.HttpsError("not-found",
+                              "Couldn't find user.");
                         }
                         const receiverU = receiverDoc.data()!;
                         const now = admin.firestore.Timestamp.now().seconds;
@@ -63,6 +66,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                   (lastEmail > limitOpened)) ||
                                  ((lastOnline <= lastEmail) &&
                                   (lastEmail > limitUnopened)))) {
+                                console.log("Not sending email (timing)");
                                 return null;
                               }
                               // Get user email
@@ -109,6 +113,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
       const afterM = change.after.data();
       // Make sure sender changed
       if (beforeM.lastMessage.user == afterM.lastMessage.user) {
+        console.log("Sender didn't change.");
         return null;
       }
       return admin.firestore().collection("users").doc(beforeM.lastMessage.user)
@@ -116,7 +121,8 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
             if (document.exists == false) {
               console.log("Couldn't find user: " +
                   beforeM.lastMessage.user);
-              return null;
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find user.");
             }
             const beforeU = document.data()!;
             return admin.firestore().collection("persons")
@@ -125,7 +131,8 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                   if (document.exists == false) {
                     console.log("Couldn't find person: " +
                         afterM.lastMessage.user);
-                    return null;
+                    throw new functions.https.HttpsError("not-found",
+                        "Couldn't find person.");
                   }
                   const afterP = document.data()!;
                   const payload = {
@@ -163,5 +170,10 @@ exports.alertOnFlag = functions.region("europe-west1").firestore
             console.log(
                 "Successfully sent email:",
                 response);
+          })
+          .catch(function(error) {
+            console.log("Error sending email: ", error);
+            throw new functions.https.HttpsError("unknown",
+                "Error sending email.");
           });
     });

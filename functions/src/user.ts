@@ -24,7 +24,8 @@ exports.updateSubscription = functions.region("europe-west1")
                   badge = doc.data()!.badge;
                 });
           } catch (error) {
-            return {code: 500, message: "Couldn't find badge"};
+            throw new functions.https.HttpsError("not-found",
+                "Couldn 't find user.");
           }
           try {
             await db.collection("users")
@@ -32,7 +33,8 @@ exports.updateSubscription = functions.region("europe-west1")
                 .update({"subscription":
                     {"productId": productId, "timestamp": timestamp}});
           } catch (error) {
-            return {code: 500, message: "Couldn't update user"};
+            throw new functions.https.HttpsError("unknown",
+                "Couldn't update user.");
           }
           try {
             await db.collection("persons")
@@ -40,9 +42,9 @@ exports.updateSubscription = functions.region("europe-west1")
                 .update({"badge": badge});
           } catch (error) {
             console.log("couldn't update badge in person " + error);
-            return {code: 500, message: "Couldn't update person"};
+            throw new functions.https.HttpsError("unknown",
+                "Couldn't update person.");
           }
-          return {code: 200, message: "Subscribed user"};
         });
 
 exports.markReviewRequested = functions.region("europe-west1")
@@ -58,9 +60,9 @@ exports.markReviewRequested = functions.region("europe-west1")
                 .doc(userId)
                 .update({"requestedReview": firestore.Timestamp.now()});
           } catch (error) {
-            return {code: 500, message: "Couldn't update user"};
+            throw new functions.https.HttpsError("unknown",
+                "Couldn't update user.");
           }
-          return {code: 200, message: "Updated user"};
         });
 
 exports.markSupportRequested = functions.region("europe-west1")
@@ -76,9 +78,9 @@ exports.markSupportRequested = functions.region("europe-west1")
                 .doc(userId)
                 .update({"lastSupportRequest": firestore.Timestamp.now()});
           } catch (error) {
-            return {code: 500, message: "Couldn't update user"};
+            throw new functions.https.HttpsError("unknown",
+                "Couldn't update user.");
           }
-          return {code: 200, message: "Updated user"};
         });
 
 exports.updateLastOnline = functions.region("europe-west1")
@@ -94,9 +96,9 @@ exports.updateLastOnline = functions.region("europe-west1")
                 .doc(userId)
                 .update({"lastOnline": firestore.Timestamp.now()});
           } catch (error) {
-            return {code: 500, message: "Couldn't update user"};
+            throw new functions.https.HttpsError("unknown",
+                "Couldn't update user.");
           }
-          return {code: 200, message: "Updated user"};
         });
 
 exports.getConfig = functions.region("europe-west1")
@@ -120,6 +122,8 @@ exports.getConfig = functions.region("europe-west1")
                 });
           } catch (error) {
             console.log("error: " + error);
+            throw new functions.https.HttpsError("unknown",
+                "Couldn't get person data.");
           }
           const returnData = {
             "forceAddActivity": forceAddActivity,
@@ -130,7 +134,7 @@ exports.getConfig = functions.region("europe-west1")
               " get a supporter badge on your profile.",
             "supportRequestInterval": 360,
           };
-          return {code: 200, data: JSON.stringify(returnData)};
+          return returnData;
         });
 
 exports.updateToken = functions.region("europe-west1")
@@ -140,7 +144,8 @@ exports.updateToken = functions.region("europe-west1")
           const db = admin.firestore();
           const token = data.token;
           if (token == null) {
-            return {code: 500, message: "No token provided"};
+            throw new functions.https.HttpsError("invalid-argument",
+                "No token provided.");
           }
 
           console.log("userid: " + userId);
@@ -151,9 +156,9 @@ exports.updateToken = functions.region("europe-west1")
                 .update({"token": {"token": token,
                   "timestamp": firestore.Timestamp.now()}});
           } catch (error) {
-            return {code: 500, message: "Couldn't update user"};
+            throw new functions.https.HttpsError("unknown",
+                "Couldn't update user.");
           }
-          return {code: 200, message: "Updated user"};
         });
 
 exports.validatePerson = functions.region("europe-west1").firestore
@@ -167,7 +172,8 @@ exports.validatePerson = functions.region("europe-west1").firestore
             .get().then((document) => {
               if (document.exists == false) {
                 console.log("Couldn't find user: " + uid);
-                return null;
+                throw new functions.https.HttpsError("not-found",
+                    "Couldn't find user.");
               }
               const user = document.data()!;
               if (user.badge == afterP.badge) {
@@ -233,7 +239,8 @@ async function sendEmailOnJoin(change:
       .then((document) => {
         if (document.exists == false) {
           console.log("Couldn't find person: " + uid);
-          return null;
+          throw new functions.https.HttpsError("not-found",
+              "Couldn't find person.");
         }
         const personData = document.data()!;
 
@@ -253,6 +260,11 @@ async function sendEmailOnJoin(change:
                   }).then((response) => console.log(
                   "Successfully sent email:", response)
               );
+            })
+            .catch(function(error) {
+              console.log("Error sending email: ", error);
+              throw new functions.https.HttpsError("unknown",
+                  "Error sending email.");
             });
       });
 }
@@ -272,7 +284,11 @@ exports.initializeUser = functions.auth
           .doc(user.uid)
           .set(payload, {merge: true})
           .then(() => console.log("Initialized user " + user.uid))
-          .catch((err) => console.log("Error: " + err));
+          .catch(function(error) {
+            console.log("Error: " + error);
+            throw new functions.https.HttpsError("unknown",
+                "Error initializing user.");
+          });
     });
 
 exports.deleteUser = functions.region("europe-west1").https.onCall(
@@ -289,6 +305,8 @@ exports.deleteUser = functions.region("europe-west1").https.onCall(
 async function deleteUser(userId: string) {
   const db = admin.firestore();
   const batchSize = 100;
+  // global error flag to not interrupt deletion process
+  let error = false;
 
   console.log("Deleting userid: " + userId);
 
@@ -311,6 +329,7 @@ async function deleteUser(userId: string) {
                       })
                       .catch((err) => {
                         console.log("Error in promise " + err);
+                        error = true;
                       });
                   await db.collection("activities")
                       .doc(doc.id)
@@ -318,7 +337,11 @@ async function deleteUser(userId: string) {
                 }));
           }
       )
-      .catch((err) => console.log("Error in query " + err));
+      .catch(function(err) {
+        console.log("Error in query " + err);
+        throw new functions.https.HttpsError("unknown",
+            "Error in user deletion query.");
+      });
   // delete likes of other"s activities and matches
   await db
       .collection("matches")
@@ -340,9 +363,13 @@ async function deleteUser(userId: string) {
                       .delete()
                       .then(() => console.log(
                           "deleted like for activity: " + data.activity))
-                      .catch((err) => console.log(
-                          "failed to delete like for activity: " +
-                          data.activity + " " + err));
+                      .catch(function(err) {
+                        console.log(
+                            "failed to delete like for activity: " +
+                            data.activity + " " + err);
+                        error = true;
+                      });
+
                   // }
                   await db.collection("matches")
                       .doc(doc.id)
@@ -369,6 +396,7 @@ async function deleteUser(userId: string) {
                   })
                   .catch((err) => {
                     console.log("Error in promise " + err);
+                    error = true;
                   });
               const users = doc.data().users;
               const index = users.indexOf(userId, 0);
@@ -388,34 +416,50 @@ async function deleteUser(userId: string) {
             }));
           }
       )
-      .catch((err) => console.log("Error in query " + err));
+      .catch(function(err) {
+        console.log("Error in query " + err);
+        error = true;
+      });
   // delete notifications
   await db.collection("notifications")
       .doc(userId)
       .delete()
-      .catch(() => {
-        return {code: 500, message: "Couldn't delete notifications"};
+      .catch(function(err) {
+        console.log("error deleting notifications: " + err);
+        error = true;
       });
   // delete images
   const defaultBucket = admin.storage().bucket();
   await defaultBucket.deleteFiles({prefix: "profilePics/" + userId})
       .then(() => console.log("deleted all files"))
-      .catch((err) => console.log("error deleting profile pics: " + err));
+      .catch(function(err) {
+        console.log("error deleting profile pics: " + err);
+        error = true;
+      });
   // delete person
   await db.collection("persons")
       .doc(userId)
       .delete()
-      .catch(() => {
-        return {code: 500, message: "Couldn't delete person"};
+      .catch(function(err) {
+        console.log("Couldn't delete person: " + err);
+        error = true;
       });
   // delete user
   await db.collection("users")
       .doc(userId)
       .delete()
-      .catch(() => {
-        return {code: 500, message: "Couldn't delete user"};
+      .catch(function(err) {
+        console.log("Couldn't delete user " + err);
+        error = true;
       });
   // delete user (auth)
-  admin.auth().deleteUser(userId);
-  return {code: 200, message: "Deleted user"};
+  admin.auth().deleteUser(userId)
+      .catch(function(err) {
+        console.log("Couldn't delete auth user: " + err);
+        error = true;
+      });
+  if (error) {
+    throw new functions.https.HttpsError("unknown",
+        "Error deleting user.");
+  }
 }

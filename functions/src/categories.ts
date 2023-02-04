@@ -11,12 +11,14 @@ exports.incrementCategoryPopularity = functions.region("europe-west1")
           .get().then((userDoc) => {
             if (userDoc.exists == false) {
               console.log("Couldn't find user: " + activity.user);
-              return null;
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find user.");
             }
             const user = userDoc.data()!;
             if (user.location.isoCountryCode == null) {
               console.log("No country code for user: " + activity.user);
-              return null;
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find country code for user.");
             }
             return Promise.all(activity.categories.map(
                 async (category: string) => {
@@ -27,7 +29,8 @@ exports.incrementCategoryPopularity = functions.region("europe-west1")
                       .get().then((categoryDoc) => {
                         if (categoryDoc.exists == false) {
                           console.log("Couldn't find category: " + category);
-                          return null;
+                          throw new functions.https.HttpsError("not-found",
+                              "Couldn't find category.");
                         }
                         const popularity = categoryDoc.data()!.popularity;
                         return db.collection("categories")

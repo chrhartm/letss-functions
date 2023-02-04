@@ -29,13 +29,15 @@ exports.like = functions.region("europe-west1").https.onCall(
       const userinfo = (await db.collection("users")
           .doc(userId).get()).data();
       if (userinfo == null) {
-        return {code: 500, message: "Couldn't find user id"};
+        throw new functions.https.HttpsError("not-found",
+            "Couldn't find user.");
       }
 
       console.log("coins: " + userinfo.coins);
 
       if (userinfo.coins == null || userinfo.coins <= 0) {
-        return {code: 403, message: "Insufficient coins"};
+        throw new functions.https.HttpsError("resource-exhausted",
+            "No likes remaining.");
       }
 
       try {
@@ -45,7 +47,8 @@ exports.like = functions.region("europe-west1").https.onCall(
             // (needed as audit trail for deleting later)
             .set(match, {merge: true});
       } catch (error) {
-        return {code: 500, message: "Couldn't update matches"};
+        throw new functions.https.HttpsError("unknown",
+            "Couldn't update matches.");
       }
       try {
         await db.collection("activities")
@@ -56,7 +59,8 @@ exports.like = functions.region("europe-west1").https.onCall(
             .then((value) => console.log("set like"));
       } catch (error) {
         console.log("couldn't set like " + error);
-        return {code: 500, message: "Couldn't set like"};
+        throw new functions.https.HttpsError("unknown",
+            "Couldn't set like.");
       }
       try {
         await db.collection("users")
@@ -65,7 +69,8 @@ exports.like = functions.region("europe-west1").https.onCall(
             .then((value) => console.log("Updated coins"));
       } catch (error) {
         console.log("couldn't update coins " + error);
-        return {code: 500, message: "Couldn't udpate coins"};
+        throw new functions.https.HttpsError("unknown",
+            "Couldn't update likes.");
       }
       try {
         await db.collection("notifications")
@@ -74,9 +79,9 @@ exports.like = functions.region("europe-west1").https.onCall(
             .then((value) => console.log("Updated notifications"));
       } catch (error) {
         console.log("couldn't update notifications " + error);
-        return {code: 500, message: "Couldn't udpate notifications"};
+        throw new functions.https.HttpsError("unknown",
+            "Couldn't update notifications.");
       }
-      return {code: 200, message: "Submitted like"};
     }
 );
 
@@ -93,12 +98,14 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       const userInfo = (await db.collection("users")
           .doc(userid).get()).data();
       if (userInfo == null) {
-        return {code: 500, message: "Couldn't find user"};
+        throw new functions.https.HttpsError("not-found",
+            "Couldn't find user.");
       }
       const personInfo = (await db.collection("persons")
           .doc(userid).get()).data();
       if (personInfo == null) {
-        return {code: 500, message: "Couldn't find person"};
+        throw new functions.https.HttpsError("not-found",
+            "Couldn't find person.");
       }
       const locality = personInfo.location.locality;
       let lastSearch = null;
@@ -108,7 +115,8 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
 
       if ((lastSearch != null) && (admin.firestore.Timestamp.now().toMillis() -
           lastSearch.toMillis()) < (1000 * waitSeconds)) {
-        return {code: 429, message: "Already requested recently"};
+        throw new functions.https.HttpsError("resource-exhausted",
+            "Already requested recently");
       }
 
       if (lastSearch == null) {
@@ -134,7 +142,8 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
             })
             .catch(function(error) {
               console.log("Error getting documents: ", error);
-              return {code: 500, message: "Unknown error"};
+              throw new functions.https.HttpsError("unknown",
+                  "Error generating matches.");
             });
       }
       // add some without interest filter
@@ -160,7 +169,8 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
           })
           .catch(function(error) {
             console.log("Error getting documents: ", error);
-            return {code: 500, message: "Unknown error"};
+            throw new functions.https.HttpsError("unknown",
+                "Error generating default matches");
           });
       console.log(activities);
 
@@ -184,7 +194,7 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
               });
             });
         if (activities.size == 0) {
-          return {code: 204, message: "No new activities available"};
+          console.log("No new activities");
         }
       }
 
@@ -198,8 +208,6 @@ exports.generateMatches = functions.region("europe-west1").https.onCall(
       });
       await batch.commit();
       console.log("after batch");
-
-      return {code: 200, message: "Generated new matches"};
     }
 );
 
@@ -220,5 +228,10 @@ exports.resetCoins = functions.region("europe-west1")
                   .doc(doc.id)
                   .update({"coins": coins});
             });
+          })
+          .catch(function(error) {
+            console.log("Error resetting coins: ", error);
+            throw new functions.https.HttpsError("unknown",
+                "Error updating coins.");
           });
     });
