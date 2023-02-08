@@ -8,6 +8,13 @@ exports.like = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
+          /* TODO uncomment when enforceAppCheck true
+          if (context.app == undefined) {
+            throw new functions.https.HttpsError(
+                'failed-precondition',
+                'The function must be called from an App Check verified app.')
+          }
+          */
           const userId = (context.auth && context.auth.uid)!;
           const db = admin.firestore();
           const activityId = data.activityId;
@@ -95,6 +102,13 @@ exports.generateMatches = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
+          /* TODO uncomment when enforceAppCheck true
+          if (context.app == undefined) {
+            throw new functions.https.HttpsError(
+                'failed-precondition',
+                'The function must be called from an App Check verified app.')
+          }
+          */
           const N = 30;
           const minN = 100;
           const waitSeconds = 10;
