@@ -204,6 +204,8 @@ exports.generateMatches = functions.region("europe-west1")
                 });
             if (activities.size == 0) {
               console.log("No new activities");
+              throw new functions.https.HttpsError("resource-exhausted",
+                  "No new activities");
             }
           }
 
