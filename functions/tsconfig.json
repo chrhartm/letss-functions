@@ -6,7 +6,9 @@
     "outDir": "lib",
     "sourceMap": true,
     "strict": true,
-    "target": "es2017"
+    "target": "es2017",
+    // TODO check in future if this can be removed (was on AbortSignal Axios issue)
+    "skipLibCheck": true
   },
   "compileOnSave": true,
   "include": [

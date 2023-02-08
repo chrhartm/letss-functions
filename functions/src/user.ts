@@ -4,6 +4,9 @@ import {firestore} from "firebase-admin";
 import utils = require("./utils");
 
 exports.updateSubscription = functions.region("europe-west1")
+    .runWith({
+      enforceAppCheck: false,
+    })
     .https.onCall(
         async (data, context) => {
           const userId = (context.auth && context.auth.uid)!;
@@ -48,6 +51,9 @@ exports.updateSubscription = functions.region("europe-west1")
         });
 
 exports.markReviewRequested = functions.region("europe-west1")
+    .runWith({
+      enforceAppCheck: false,
+    })
     .https.onCall(
         async (data, context) => {
           const userId = (context.auth && context.auth.uid)!;
@@ -66,6 +72,9 @@ exports.markReviewRequested = functions.region("europe-west1")
         });
 
 exports.markSupportRequested = functions.region("europe-west1")
+    .runWith({
+      enforceAppCheck: false,
+    })
     .https.onCall(
         async (data, context) => {
           const userId = (context.auth && context.auth.uid)!;
@@ -84,6 +93,9 @@ exports.markSupportRequested = functions.region("europe-west1")
         });
 
 exports.updateLastOnline = functions.region("europe-west1")
+    .runWith({
+      enforceAppCheck: false,
+    })
     .https.onCall(
         async (data, context) => {
           const userId = (context.auth && context.auth.uid)!;
@@ -102,6 +114,9 @@ exports.updateLastOnline = functions.region("europe-west1")
         });
 
 exports.getConfig = functions.region("europe-west1")
+    .runWith({
+      enforceAppCheck: false,
+    })
     .https.onCall(
         async (data, context) => {
           const userId = (context.auth && context.auth.uid)!;
@@ -138,6 +153,9 @@ exports.getConfig = functions.region("europe-west1")
         });
 
 exports.updateToken = functions.region("europe-west1")
+    .runWith({
+      enforceAppCheck: false,
+    })
     .https.onCall(
         async (data, context) => {
           const userId = (context.auth && context.auth.uid)!;
@@ -291,11 +309,15 @@ exports.initializeUser = functions.auth
           });
     });
 
-exports.deleteUser = functions.region("europe-west1").https.onCall(
-    async (data, context) => {
-      const userId = (context.auth && context.auth.uid)!;
-      return deleteUser(userId);
-    });
+exports.deleteUser = functions.region("europe-west1")
+    .runWith({
+      enforceAppCheck: false,
+    })
+    .https.onCall(
+        async (data, context) => {
+          const userId = (context.auth && context.auth.uid)!;
+          return deleteUser(userId);
+        });
 
 /**
  * Delete a user
