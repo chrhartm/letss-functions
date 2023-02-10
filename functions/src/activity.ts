@@ -1,6 +1,7 @@
 import functions = require("firebase-functions");
 import admin = require("firebase-admin");
 import {firestore} from "firebase-admin";
+import https = require("https");
 
 exports.like = functions.region("europe-west1")
     .runWith({
@@ -66,7 +67,7 @@ exports.like = functions.region("europe-west1")
             await db.collection("users")
                 .doc(userId)
                 .update({"coins": userinfo.coins - 1})
-                .then((value) => console.log("Updated coins"));
+                .then((_value) => console.log("Updated coins"));
           } catch (error) {
             console.log("couldn't update coins " + error);
             throw new functions.https.HttpsError("unknown",
@@ -101,7 +102,7 @@ exports.like = functions.region("europe-west1")
                 .collection("likes")
                 .doc(userId)
                 .set(like)
-                .then((value) => console.log("set like"));
+                .then((_value) => console.log("set like"));
           } catch (error) {
             console.log("couldn't set like " + error);
             throw new functions.https.HttpsError("unknown",
@@ -111,7 +112,7 @@ exports.like = functions.region("europe-west1")
             await db.collection("notifications")
                 .doc(activityUserId)
                 .set({"newLikes": true}, {merge: true})
-                .then((value) => console.log("Updated notifications"));
+                .then((_value) => console.log("Updated notifications"));
           } catch (error) {
             console.log("couldn't update notifications " + error);
             throw new functions.https.HttpsError("unknown",
@@ -125,7 +126,7 @@ exports.generateMatches = functions.region("europe-west1")
       enforceAppCheck: false,
     })
     .https.onCall(
-        async (data, context) => {
+        async (_data, context) => {
           /* TODO uncomment when enforceAppCheck true
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
@@ -263,7 +264,7 @@ exports.generateMatches = functions.region("europe-west1")
 exports.resetCoins = functions.region("europe-west1")
     .pubsub.schedule("0 10 * * *")
     .timeZone("Europe/Paris")
-    .onRun((context) => {
+    .onRun((_context) => {
       const db = admin.firestore();
       const coinsFree = 5;
       const coinsSupporter = 10;
@@ -284,3 +285,18 @@ exports.resetCoins = functions.region("europe-west1")
                 "Error updating coins.");
           });
     });
+
+exports.countOnConnection = functions.region("europe-west1").firestore
+    .document("/chats/{chatId}")
+    .onCreate((_snap, _context) => {
+      https.get("https://api.smiirl.com/18a59c001139/" +
+     "add-number/3bfebe60c0388db60df57407d0331c95/1", (res) => {
+        console.log("Status Code:", res.statusCode);
+        if (res.statusCode != null && res.statusCode!= 200) {
+          throw new functions.https.HttpsError("unknown",
+              "An error occured");
+        }
+      });
+    });
+
+
