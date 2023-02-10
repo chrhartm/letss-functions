@@ -16,7 +16,11 @@ exports.like = functions.region("europe-west1")
                 'The function must be called from an App Check verified app.')
           }
           */
-          const userId = (context.auth && context.auth.uid)!;
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
           const db = admin.firestore();
           const activityId = data.activityId;
           const activityUserId = data.activityUserId;
@@ -67,7 +71,7 @@ exports.like = functions.region("europe-west1")
             await db.collection("users")
                 .doc(userId)
                 .update({"coins": userinfo.coins - 1})
-                .then((_value) => console.log("Updated coins"));
+                .then(() => console.log("Updated coins"));
           } catch (error) {
             console.log("couldn't update coins " + error);
             throw new functions.https.HttpsError("unknown",
@@ -102,7 +106,7 @@ exports.like = functions.region("europe-west1")
                 .collection("likes")
                 .doc(userId)
                 .set(like)
-                .then((_value) => console.log("set like"));
+                .then(() => console.log("set like"));
           } catch (error) {
             console.log("couldn't set like " + error);
             throw new functions.https.HttpsError("unknown",
@@ -112,7 +116,7 @@ exports.like = functions.region("europe-west1")
             await db.collection("notifications")
                 .doc(activityUserId)
                 .set({"newLikes": true}, {merge: true})
-                .then((_value) => console.log("Updated notifications"));
+                .then(() => console.log("Updated notifications"));
           } catch (error) {
             console.log("couldn't update notifications " + error);
             throw new functions.https.HttpsError("unknown",
@@ -137,27 +141,31 @@ exports.generateMatches = functions.region("europe-west1")
           const N = 30;
           const minN = 100;
           const waitSeconds = 10;
-          const userid = (context.auth && context.auth.uid)!;
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
           const db = admin.firestore();
 
-          console.log("userid: " + userid);
+          console.log("userid: " + userId);
 
           const userInfo = (await db.collection("users")
-              .doc(userid).get()).data();
+              .doc(userId).get()).data();
           if (userInfo == null) {
             throw new functions.https.HttpsError("not-found",
                 "Couldn't find user.");
           }
           const personInfo = (await db.collection("persons")
-              .doc(userid).get()).data();
+              .doc(userId).get()).data();
           if (personInfo == null) {
             throw new functions.https.HttpsError("not-found",
                 "Couldn't find person.");
           }
           const locality = personInfo.location.locality;
           let lastSearch = null;
-          if (userInfo!.lastSearch != null) {
-            lastSearch = userInfo!.lastSearch[locality];
+          if (userInfo.lastSearch != null) {
+            lastSearch = userInfo.lastSearch[locality];
           }
 
           if ((lastSearch != null) &&
@@ -171,7 +179,7 @@ exports.generateMatches = functions.region("europe-west1")
             lastSearch = admin.firestore.Timestamp.fromMillis(0);
           }
           const activities = new Set();
-          for (const category of personInfo!.interests) {
+          for (const category of personInfo.interests) {
             await db.collection("activities")
                 .where("status", "==", "ACTIVE")
                 .where("location.locality", "==", locality)
@@ -183,7 +191,7 @@ exports.generateMatches = functions.region("europe-west1")
                 .get()
                 .then((querySnapshot) => {
                   querySnapshot.forEach((doc) => {
-                    if (doc.data()["user"] != userid) {
+                    if (doc.data()["user"] != userId) {
                       activities.add(doc.id);
                     }
                   });
@@ -210,7 +218,7 @@ exports.generateMatches = functions.region("europe-west1")
               .get()
               .then((querySnapshot) => {
                 querySnapshot.forEach((doc) => {
-                  if (doc.data()["user"] != userid) {
+                  if (doc.data()["user"] != userId) {
                     activities.add(doc.id);
                   }
                 });
@@ -223,7 +231,7 @@ exports.generateMatches = functions.region("europe-west1")
           console.log(activities);
 
           const now = admin.firestore.Timestamp.now();
-          await db.collection("users").doc(userid)
+          await db.collection("users").doc(userId)
               .update({[`lastSearch.${locality}`]: now});
           console.log("after user update");
 
@@ -231,7 +239,7 @@ exports.generateMatches = functions.region("europe-west1")
             // Get matches that were most recently passed if no activities
             await db.collection("matches")
                 .where("status", "==", "PASS")
-                .where("user", "==", userid)
+                .where("user", "==", userId)
                 .where("location.locality", "==", locality)
                 .orderBy("timestamp", "desc")
                 .limit(N)
@@ -252,9 +260,9 @@ exports.generateMatches = functions.region("europe-west1")
           const batch = db.batch();
           // TODO should this be activity location?
           activities.forEach((doc) => {
-            const data = {activity: doc, user: userid, status: "NEW",
-              timestamp: now, location: personInfo!.location};
-            batch.set(db.collection("matches").doc(doc+"_"+userid), data);
+            const data = {activity: doc, user: userId, status: "NEW",
+              timestamp: now, location: personInfo.location};
+            batch.set(db.collection("matches").doc(doc+"_"+userId), data);
           });
           await batch.commit();
           console.log("after batch");
@@ -264,7 +272,7 @@ exports.generateMatches = functions.region("europe-west1")
 exports.resetCoins = functions.region("europe-west1")
     .pubsub.schedule("0 10 * * *")
     .timeZone("Europe/Paris")
-    .onRun((_context) => {
+    .onRun(() => {
       const db = admin.firestore();
       const coinsFree = 5;
       const coinsSupporter = 10;
@@ -288,7 +296,7 @@ exports.resetCoins = functions.region("europe-west1")
 
 exports.countOnConnection = functions.region("europe-west1").firestore
     .document("/chats/{chatId}")
-    .onCreate((_snap, _context) => {
+    .onCreate(() => {
       https.get("https://api.smiirl.com/18a59c001139/" +
      "add-number/3bfebe60c0388db60df57407d0331c95/1", (res) => {
         console.log("Status Code:", res.statusCode);

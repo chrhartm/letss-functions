@@ -15,7 +15,11 @@ exports.pushOnLike = functions.region("europe-west1").firestore
               throw new functions.https.HttpsError("not-found",
                   "Couldn't find person.");
             }
-            const senderP = senderDoc.data()!;
+            const senderP = senderDoc.data();
+            if (senderP == null) {
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find sender.");
+            }
             // Get data on activity
             return db.collection("activities").doc(context.params.activityId)
                 .get().then((activity) => {
@@ -25,16 +29,25 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                     throw new functions.https.HttpsError("not-found",
                         "Couldn't find activity.");
                   }
+                  const activityData = activity.data();
+                  if (activityData == null) {
+                    throw new functions.https.HttpsError("not-found",
+                        "Couldn't find activity");
+                  }
                   // Get data on receiver
-                  return db.collection("users").doc(activity.data()!.user)
+                  return db.collection("users").doc(activityData.user)
                       .get().then((receiverDoc) => {
                         if (receiverDoc.exists == false) {
                           console.log("Couldn't find user: " +
-                              activity.data()!.user);
+                              activityData.user);
                           throw new functions.https.HttpsError("not-found",
                               "Couldn't find user.");
                         }
-                        const receiverU = receiverDoc.data()!;
+                        const receiverU = receiverDoc.data();
+                        if (receiverU == null) {
+                          throw new functions.https.HttpsError("not-found",
+                              "Couldn't find user.");
+                        }
                         const now = admin.firestore.Timestamp.now().seconds;
                         const limitUnopened = now - 60*60*24*3;
                         const limitOpened = now - 60*60*24;
@@ -49,7 +62,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                           },
                         };
                         console.log("Sending message to " +
-                            activity.data()!.user +
+                            activityData.user +
                             ": " + payload);
                         // Send push notification
                         return admin.messaging()
@@ -70,18 +83,24 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                 return null;
                               }
                               // Get user email
-                              return admin.auth().getUser(activity.data()!.user)
+                              return admin.auth().getUser(activityData.user)
                                   .then((userRecord) => {
+                                    const userEmail = userRecord.email;
+                                    if (userEmail == null) {
+                                      throw new functions.https.HttpsError(
+                                          "not-found",
+                                          "Couldn't find user email.");
+                                    }
                                     // Send email
                                     return utils.sendEmail(
                                         "d-93478b18f7ee4935b554dea49749663e",
                                         "Letss",
                                         "noreply@letss.app",
-                                        userRecord.email!,
+                                        userEmail,
                                         17654,
                                         {name: senderP.name as string,
                                           activity:
-                                            activity.data()!.name as string,
+                                            activityData.name as string,
                                           link: "https://letss.page.link/myactivities",
                                         })
                                         .then((response) => {
@@ -90,7 +109,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                               response);
                                           // Update last email timestamp
                                           return db.collection("users")
-                                              .doc(activity.data()!.user)
+                                              .doc(activityData.user)
                                               .update({lastEmail:
                                                 admin.firestore.Timestamp
                                                     .now()})
@@ -108,7 +127,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
 
 exports.pushOnMessage = functions.region("europe-west1").firestore
     .document("/chats/{chatId}")
-    .onUpdate((change, _) => {
+    .onUpdate((change, ) => {
       const beforeM = change.before.data();
       const afterM = change.after.data();
       // Make sure sender changed
@@ -124,7 +143,11 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
               throw new functions.https.HttpsError("not-found",
                   "Couldn't find user.");
             }
-            const beforeU = document.data()!;
+            const beforeU = document.data();
+            if (beforeU == null) {
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find user.");
+            }
             return admin.firestore().collection("persons")
                 .doc(afterM.lastMessage.user)
                 .get().then((document) => {
@@ -134,7 +157,11 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                     throw new functions.https.HttpsError("not-found",
                         "Couldn't find person.");
                   }
-                  const afterP = document.data()!;
+                  const afterP = document.data();
+                  if (afterP == null) {
+                    throw new functions.https.HttpsError("not-found",
+                        "Couldn't find person.");
+                  }
                   const payload = {
                     notification: {
                       title: afterP.name,
@@ -154,7 +181,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
 
 exports.alertOnFlag = functions.region("europe-west1").firestore
     .document("/flags/{flagId}")
-    .onCreate((snap, context) => {
+    .onCreate((snap, ) => {
       const flag = snap.data();
       // Get data on sender
       return utils.sendEmail(

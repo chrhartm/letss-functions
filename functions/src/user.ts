@@ -16,7 +16,11 @@ exports.updateSubscription = functions.region("europe-west1")
                 'The function must be called from an App Check verified app.')
           }
           */
-          const userId = (context.auth && context.auth.uid)!;
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
           const db = admin.firestore();
           const productId = data.productId;
           const timestamp = new Date(data.timestamp);
@@ -31,7 +35,12 @@ exports.updateSubscription = functions.region("europe-west1")
                 .doc(productId)
                 .get()
                 .then((doc) => {
-                  badge = doc.data()!.badge;
+                  const docData = doc.data();
+                  if (docData == null) {
+                    throw new functions.https.HttpsError("not-found",
+                        "Product not found");
+                  }
+                  badge = docData.badge;
                 });
           } catch (error) {
             throw new functions.https.HttpsError("not-found",
@@ -70,7 +79,11 @@ exports.markReviewRequested = functions.region("europe-west1")
                 'The function must be called from an App Check verified app.')
           }
           */
-          const userId = (context.auth && context.auth.uid)!;
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
           const db = admin.firestore();
 
           console.log("userid: " + userId);
@@ -98,7 +111,11 @@ exports.markSupportRequested = functions.region("europe-west1")
                 'The function must be called from an App Check verified app.')
           }
           */
-          const userId = (context.auth && context.auth.uid)!;
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
           const db = admin.firestore();
 
           console.log("userid: " + userId);
@@ -126,7 +143,11 @@ exports.updateLastOnline = functions.region("europe-west1")
                 'The function must be called from an App Check verified app.')
           }
           */
-          const userId = (context.auth && context.auth.uid)!;
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
           const db = admin.firestore();
 
           console.log("userid: " + userId);
@@ -154,7 +175,11 @@ exports.getConfig = functions.region("europe-west1")
                 'The function must be called from an App Check verified app.')
           }
           */
-          const userId = (context.auth && context.auth.uid)!;
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
           const db = admin.firestore();
           let forceAddActivity = false;
 
@@ -164,7 +189,11 @@ exports.getConfig = functions.region("europe-west1")
             await db.collection("persons")
                 .doc(userId)
                 .get().then((doc) => {
-                  const personData = doc.data()!;
+                  const personData = doc.data();
+                  if (personData == null) {
+                    throw new functions.https.HttpsError("not-found",
+                        "Person not found");
+                  }
                   const locality = personData.location.locality;
                   if (locality == "Amsterdam") {
                     forceAddActivity = true;
@@ -200,7 +229,11 @@ exports.updateToken = functions.region("europe-west1")
                 'The function must be called from an App Check verified app.')
           }
           */
-          const userId = (context.auth && context.auth.uid)!;
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
           const db = admin.firestore();
           const token = data.token;
           if (token == null) {
@@ -223,7 +256,7 @@ exports.updateToken = functions.region("europe-west1")
 
 exports.validatePerson = functions.region("europe-west1").firestore
     .document("/persons/{personId}")
-    .onUpdate((change, _) => {
+    .onUpdate((change, ) => {
       const db = admin.firestore();
       const uid = change.after.id;
       const afterP = change.after.data();
@@ -235,7 +268,11 @@ exports.validatePerson = functions.region("europe-west1").firestore
                 throw new functions.https.HttpsError("not-found",
                     "Couldn't find user.");
               }
-              const user = document.data()!;
+              const user = document.data();
+              if (user == null) {
+                throw new functions.https.HttpsError("not-found",
+                    "User not found.");
+              }
               if (user.badge == afterP.badge) {
                 console.log("Nothing to do for : " + uid);
                 return null;
@@ -244,9 +281,14 @@ exports.validatePerson = functions.region("europe-west1").firestore
                     .doc(user.subscription.productId)
                     .get()
                     .then((badge) => {
+                      const badgeData = badge.data();
+                      if (badgeData == null) {
+                        throw new functions.https.HttpsError("not-found",
+                            "Product not found");
+                      }
                       return db.collection("persons")
                           .doc(uid)
-                          .update({"badge": badge.data()!.badge}).then(() => {
+                          .update({"badge": badgeData.badge}).then(() => {
                             console.log("Updated badge for " + uid);
                             return null;
                           });
@@ -274,7 +316,7 @@ async function sendEmailOnJoin(change:
   }
 
   const db = admin.firestore();
-  let count = 1;
+  const count = 1;
 
   const counterPath = db.collection("stats")
       .doc(after.location["isoCountryCode"])
@@ -282,7 +324,6 @@ async function sendEmailOnJoin(change:
       .doc(after.location["locality"]);
   await counterPath.get().then((doc) => {
     if (doc.exists) {
-      count = doc.data()!.count + 1;
       return counterPath.update({
         "count": firestore.FieldValue.increment(1),
       });
@@ -302,16 +343,25 @@ async function sendEmailOnJoin(change:
           throw new functions.https.HttpsError("not-found",
               "Couldn't find person.");
         }
-        const personData = document.data()!;
+        const personData = document.data();
+        if (personData == null) {
+          throw new functions.https.HttpsError("not-found",
+              "Person not found.");
+        }
 
         return admin.auth().getUser(uid)
             .then((userRecord) => {
+              const email = userRecord.email;
+              if (email == null) {
+                throw new functions.https.HttpsError("not-found",
+                    "Email not found.");
+              }
               // Send email
               return utils.sendEmail(
                   "d-d71b1d7a1c124966ad24a08580066d90",
                   "Letss",
                   "noreply@letss.app",
-                  userRecord.email!,
+                  email,
                   18546,
                   {name: personData.name as string,
                     count: count as number,
@@ -331,7 +381,7 @@ async function sendEmailOnJoin(change:
 
 exports.initializeUser = functions.auth
     .user()
-    .onCreate(async (user, context) => {
+    .onCreate(async (user, ) => {
       const db = admin.firestore();
       const payload = {"coins": 5,
         "lastSupportRequest": firestore.Timestamp.now(),
@@ -364,7 +414,11 @@ exports.deleteUser = functions.region("europe-west1")
                 'The function must be called from an App Check verified app.')
           }
           */
-          const userId = (context.auth && context.auth.uid)!;
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
           return deleteUser(userId);
         });
 

@@ -86,6 +86,7 @@ export async function sendEmail(templateId: string,
     fromAddress: string,
     toAddress: string,
     unsubscribeId: number,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any) {
   sendGridClient.setApiKey(functions.config().sendgrid.key);
 

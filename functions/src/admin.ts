@@ -19,7 +19,7 @@ exports.bootstrapDb = functions.region("europe-west1").https
       await db.collection("persons")
           .doc("DELETED")
           .set(payload)
-          .catch((err) => res.status(500).send("Failed adding person"));
+          .catch(() => res.status(500).send("Failed adding person"));
 
       const countries = ["NL", "DE"];
 
@@ -90,7 +90,7 @@ exports.bootstrapDb = functions.region("europe-west1").https
             }
           }
           await batch.commit()
-              .catch((err) =>
+              .catch(() =>
                 res.status(500).send("Error in category addition"));
         }
       }
