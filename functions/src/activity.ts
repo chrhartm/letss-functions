@@ -61,6 +61,40 @@ exports.like = functions.region("europe-west1")
             throw new functions.https.HttpsError("unknown",
                 "Couldn't update matches.");
           }
+
+          try {
+            await db.collection("users")
+                .doc(userId)
+                .update({"coins": userinfo.coins - 1})
+                .then((value) => console.log("Updated coins"));
+          } catch (error) {
+            console.log("couldn't update coins " + error);
+            throw new functions.https.HttpsError("unknown",
+                "Couldn't update likes.");
+          }
+
+          let blocked = false;
+          try {
+            await db.collection("blocks")
+                .doc(activityUserId)
+                .collection("blocks")
+                .doc(userId)
+                .get()
+                .then((value) => {
+                  if (value.exists) {
+                    blocked = true;
+                    console.log(userId + "is blocked by" + activityUserId);
+                  }
+                });
+          } catch (error) {
+            // TODO check if this error happens when blocked does not exist
+            console.log("couldn't get blocked " + error);
+          }
+
+          if (blocked) {
+            return;
+          }
+
           try {
             await db.collection("activities")
                 .doc(activityId)
@@ -72,16 +106,6 @@ exports.like = functions.region("europe-west1")
             console.log("couldn't set like " + error);
             throw new functions.https.HttpsError("unknown",
                 "Couldn't set like.");
-          }
-          try {
-            await db.collection("users")
-                .doc(userId)
-                .update({"coins": userinfo.coins - 1})
-                .then((value) => console.log("Updated coins"));
-          } catch (error) {
-            console.log("couldn't update coins " + error);
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't update likes.");
           }
           try {
             await db.collection("notifications")
