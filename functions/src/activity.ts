@@ -2,6 +2,8 @@ import functions = require("firebase-functions");
 import admin = require("firebase-admin");
 import {firestore} from "firebase-admin";
 import https = require("https");
+import {UltimateTextToImage} from "ultimate-text-to-image";
+
 
 exports.like = functions.region("europe-west1")
     .runWith({
@@ -307,4 +309,67 @@ exports.countOnConnection = functions.region("europe-west1").firestore
       });
     });
 
+exports.generateImage = functions.region("europe-west1")
+    .runWith({
+      enforceAppCheck: false,
+    })
+    .https.onCall(
+        async (data, context) => {
+          /* TODO uncomment when enforceAppCheck true
+          if (context.app == undefined) {
+            throw new functions.https.HttpsError(
+                'failed-precondition',
+                'The function must be called from an App Check verified app.')
+          }
+          */
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
 
+          console.log("userid: " + userId);
+
+          const fileName = data.activityId + ".png";
+          const activityName = data.activityName;
+          const imageBucket = "activityImages/";
+          const bucket = admin.storage().bucket();
+          const destination = `${imageBucket}${fileName}`;
+          let URL = "";
+
+          try {
+            const imageBuffer = new UltimateTextToImage(activityName, {
+              width: 1080,
+              height: 1080,
+              fontSize: 72,
+              minFontSize: 10,
+              align: "left",
+              valign: "top",
+              margin: 100,
+              fontColor: "FF00000000",
+              backgroundColor: "#FFFFFFFF",
+              fontFamily: "Roboto",
+              underlineColor: "#FFFF9800",
+              underlineSize: 4,
+            })
+                .render()
+                .toBuffer();
+            try {
+              const file = bucket.file(destination);
+              await file.save(imageBuffer, {contentType: "image/png"});
+              file.makePublic();
+              URL = file.publicUrl();
+              console.log(`${fileName} uploaded" +
+              " to /${imageBucket}/${fileName}.`);
+            } catch (e) {
+              throw new functions.https.HttpsError("unknown",
+                  "File upload failed");
+            }
+          } catch {
+            console.log("Error generating impage");
+
+            throw new functions.https.HttpsError("unknown",
+                "Error geneerating image");
+          }
+          return {url: URL};
+        });
