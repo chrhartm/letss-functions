@@ -7,6 +7,7 @@ exports.bootstrapDb = functions.region("europe-west1").https
 
       if (req.query.passphrase != "supersecretpassphrase123") {
         res.status(401).send("Not authenticated");
+        return;
       }
 
       const payload = {

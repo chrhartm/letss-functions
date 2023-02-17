@@ -342,6 +342,31 @@ exports.generateImage = functions.region("europe-west1")
               activityName, persona);
         });
 
+exports.promotionImage = functions.region("europe-west1").https
+    .onRequest(async (req, res) => {
+      if (req.body.passphrase != "29rdGDPouc7icnspsdf31S") {
+        res.status(401).send("Not authenticated");
+        return;
+      }
+
+      if (req.body.activity == null || req.body.persona == null) {
+        res.status(400).send("Insufficient parameters");
+        return;
+      }
+
+      const bucket = "promotionImages";
+      const activityName = req.body.activity as string;
+      const persona = req.body.persona as string;
+      const filename = activityName.toString().trim()
+          .toLowerCase().replace(" ", "_") + ".png";
+
+      const url = await generateActivityImage(bucket, filename,
+          activityName, persona);
+
+      res.status(200).send({url: url});
+    });
+
+
 /**
  * Generates an image based on an activity name and stores it to firestore
  * @param {string} imageBucket - bucket to store image in
