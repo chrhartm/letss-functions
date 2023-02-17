@@ -2,7 +2,8 @@ import functions = require("firebase-functions");
 import admin = require("firebase-admin");
 import {firestore} from "firebase-admin";
 import https = require("https");
-import {UltimateTextToImage} from "ultimate-text-to-image";
+import {getCanvasImage, registerFont, UltimateTextToImage}
+  from "ultimate-text-to-image";
 
 
 exports.like = functions.region("europe-west1")
@@ -333,43 +334,149 @@ exports.generateImage = functions.region("europe-west1")
           const fileName = data.activityId + ".png";
           const activityName = data.activityName;
           const imageBucket = "activityImages/";
-          const bucket = admin.storage().bucket();
-          const destination = `${imageBucket}${fileName}`;
-          let URL = "";
+          const persona = data.activityPersona;
 
-          try {
-            const imageBuffer = new UltimateTextToImage(activityName, {
-              width: 1080,
-              height: 1080,
-              fontSize: 72,
-              minFontSize: 10,
-              align: "left",
-              valign: "top",
-              margin: 100,
-              fontColor: "FF00000000",
-              backgroundColor: "#FFFFFFFF",
-              fontFamily: "Roboto",
-              underlineColor: "#FFFF9800",
-              underlineSize: 4,
-            })
-                .render()
-                .toBuffer();
-            try {
-              const file = bucket.file(destination);
-              await file.save(imageBuffer, {contentType: "image/png"});
-              file.makePublic();
-              URL = file.publicUrl();
-              console.log(`${fileName} uploaded" +
-              " to /${imageBucket}/${fileName}.`);
-            } catch (e) {
-              throw new functions.https.HttpsError("unknown",
-                  "File upload failed");
-            }
-          } catch {
-            console.log("Error generating impage");
+          // TODO check if image already exists
 
-            throw new functions.https.HttpsError("unknown",
-                "Error geneerating image");
-          }
-          return {url: URL};
+          return generateActivityImage(imageBucket, fileName,
+              activityName, persona);
         });
+
+/**
+ * Generates an image based on an activity name and stores it to firestore
+ * @param {string} imageBucket - bucket to store image in
+ * @param {string} fileName - name of file
+ * @param {string} activityName - name of activity
+ * @param {string} persona - persona of activity
+ * @return {function} - URL of Image
+ */
+async function generateActivityImage(imageBucket: string, fileName: string,
+    activityName: string, persona: string ) {
+  const color = "#FF9800";
+  const fontsize = 120;
+  const lineHeightMultiplier = 1.2;
+  const underlineSize = 20;
+  const size = 1080;
+  const margin = 100;
+  const fontFamily = "Roboto";
+  const joinFontSize = 40;
+  const joinUnderlineSize = 15;
+
+  const bucket = admin.storage().bucket();
+  const destination = `${imageBucket}${fileName}`;
+  let URL = "";
+  const joinText = "Join " + persona + " on Letss";
+
+  registerFont("./assets/fonts/Roboto-Regular.otf",
+      {family: "Roboto", weight: 100});
+  registerFont("./assets/fonts/Roboto-Bold.otf",
+      {family: "Roboto", weight: 800});
+
+  console.log("ActivityName: " + activityName);
+
+  try {
+    const mainImageBuffer = new UltimateTextToImage(activityName, {
+      width: size,
+      height: size,
+      margin: margin,
+      marginBottom: margin*2,
+      fontSize: fontsize,
+      minFontSize: fontsize,
+      align: "left",
+      valign: "top",
+      fontWeight: "bold",
+      fontColor: "#000000",
+      backgroundColor: "#FFFFFF00",
+      fontFamily: fontFamily,
+      autoWrapLineHeightMultiplier: lineHeightMultiplier,
+    }).render().toBuffer();
+    const mainImage = await getCanvasImage({buffer: mainImageBuffer});
+
+    const underlineImageBuffer = new UltimateTextToImage(activityName, {
+      width: size,
+      height: size,
+      margin: margin,
+      marginBottom: margin*2,
+      fontSize: fontsize,
+      minFontSize: fontsize,
+      align: "left",
+      valign: "top",
+      marginTop: margin + underlineSize/2,
+      fontWeight: "bold",
+      fontColor: "#FFFFFF00",
+      backgroundColor: "#FFFFFF00",
+      fontFamily: fontFamily,
+      underlineColor: color,
+      autoWrapLineHeightMultiplier: lineHeightMultiplier,
+      underlineSize: underlineSize,
+    }).render().toBuffer();
+    const underlineImage = await getCanvasImage({buffer: underlineImageBuffer});
+
+    const joinImageUnderlineBuffer = new UltimateTextToImage("Letss", {
+      fontSize: joinFontSize,
+      minFontSize: joinFontSize,
+      marginBottom: joinUnderlineSize/2,
+      fontWeight: "bold",
+      fontColor: "#FFFFFF00",
+      backgroundColor: "#FFFFFF00",
+      fontFamily: fontFamily,
+      underlineColor: color,
+      autoWrapLineHeightMultiplier: lineHeightMultiplier,
+      underlineSize: joinUnderlineSize,
+    }).render().toBuffer();
+    const joinImageUnderline = await getCanvasImage({buffer:
+      joinImageUnderlineBuffer});
+
+    const joinImageBuffer = new UltimateTextToImage(joinText, {
+      fontSize: joinFontSize,
+      minFontSize: joinFontSize,
+      fontWeight: "bold",
+      fontColor: "#000000",
+      backgroundColor: "#FFFFFF00",
+      fontFamily: fontFamily,
+      autoWrapLineHeightMultiplier: lineHeightMultiplier,
+    }).render().toBuffer();
+    const joinImage = await getCanvasImage({buffer: joinImageBuffer});
+
+    const imageBuffer = new UltimateTextToImage("", {
+      width: size,
+      height: size,
+      fontSize: fontsize,
+      minFontSize: fontsize,
+      align: "left",
+      valign: "top",
+      fontColor: "#00000000",
+      backgroundColor: "#FFFFFF",
+      autoWrapLineHeightMultiplier: lineHeightMultiplier,
+      images: [
+        {canvasImage: underlineImage, layer: 1, repeat: "fit",
+        },
+        {canvasImage: mainImage, layer: 1, repeat: "fit",
+        },
+        {canvasImage: joinImageUnderline, layer: 1, repeat: "none",
+          sy: -margin, sx: -(margin+joinImageUnderline.width)},
+        {canvasImage: joinImage, layer: 1, repeat: "none",
+          sy: -(margin+joinUnderlineSize/3), sx: -(margin + joinImage.width)},
+      ],
+    })
+        .render()
+        .toBuffer();
+    try {
+      const file = bucket.file(destination);
+      await file.save(imageBuffer, {contentType: "image/png"});
+      file.makePublic();
+      URL = file.publicUrl();
+      console.log(`${fileName} uploaded" +
+        " to /${imageBucket}/${fileName}.`);
+    } catch (e) {
+      throw new functions.https.HttpsError("unknown",
+          "File upload failed");
+    }
+  } catch {
+    console.log("Error generating impage");
+
+    throw new functions.https.HttpsError("unknown",
+        "Error geneerating image");
+  }
+  return {url: URL};
+}
