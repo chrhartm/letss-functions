@@ -354,14 +354,15 @@ exports.promotionImage = functions.region("europe-west1").https
         return;
       }
 
-      const bucket = "promotionImages";
+      const bucket = "promotionImages/";
       const activityName = req.body.activity as string;
       const persona = req.body.persona as string;
-      const filename = activityName.toString().trim()
-          .toLowerCase().replace(" ", "_") + ".png";
+      const color = req.body.color as string;
+      const id = req.body.id as string;
+      const filename = id + ".png";
 
       const url = await generateActivityImage(bucket, filename,
-          activityName, persona);
+          activityName, persona, color);
 
       res.status(200).send({url: url});
     });
@@ -373,11 +374,11 @@ exports.promotionImage = functions.region("europe-west1").https
  * @param {string} fileName - name of file
  * @param {string} activityName - name of activity
  * @param {string} persona - persona of activity
+ * @param {string} color - color for underlines
  * @return {function} - URL of Image
  */
 async function generateActivityImage(imageBucket: string, fileName: string,
-    activityName: string, persona: string ) {
-  const color = "#FF9800";
+    activityName: string, persona: string, color ="#FF9800") {
   const fontsize = 120;
   const lineHeightMultiplier = 1.2;
   const underlineSize = 20;
@@ -390,7 +391,7 @@ async function generateActivityImage(imageBucket: string, fileName: string,
   const bucket = admin.storage().bucket();
   const destination = `${imageBucket}${fileName}`;
   let URL = "";
-  const joinText = "Join " + persona + " on Letss";
+  const joinText = "Find " + persona + " on Letss";
 
   registerFont("./assets/fonts/Roboto-Regular.otf",
       {family: "Roboto", weight: 100});
