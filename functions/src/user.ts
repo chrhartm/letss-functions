@@ -432,8 +432,32 @@ async function deleteUser(userId: string) {
   const batchSize = 100;
   // global error flag to not interrupt deletion process
   let error = false;
+  const defaultBucket = admin.storage().bucket();
 
   console.log("Deleting userid: " + userId);
+
+  // Make sure user doesn't have any flags against them
+  await db
+      .collection("flags")
+      .where("flagged", "==", userId)
+      .get()
+      .then(
+          (query) => {
+            if (!query.empty) {
+              throw new functions.https.HttpsError("unknown",
+                  "User can't be deleted.");
+            }
+          });
+
+  // Delete blocks by user
+  // ignore deletion of where user was blocked for now, low risk
+  await db
+      .collection("blocks")
+      .doc(userId)
+      .delete()
+      .catch(function(err) {
+        console.log("Error in blocks deletion " + err);
+      });
 
   // Delete likes of own activities and activities
   await db
@@ -459,13 +483,20 @@ async function deleteUser(userId: string) {
                   await db.collection("activities")
                       .doc(doc.id)
                       .delete();
+                  // Delete activity images
+                  await defaultBucket.deleteFiles({prefix: "activityImages/" +
+                       doc.id})
+                      .then(() => console.log("deleted image for " + doc.id))
+                      .catch(function(err) {
+                        console.log("error deleting activity images: " + err);
+                        error = true;
+                      });
                 }));
           }
       )
       .catch(function(err) {
         console.log("Error in query " + err);
-        throw new functions.https.HttpsError("unknown",
-            "Error in user deletion query.");
+        error = true;
       });
   // delete likes of other"s activities and matches
   await db
@@ -554,7 +585,6 @@ async function deleteUser(userId: string) {
         error = true;
       });
   // delete images
-  const defaultBucket = admin.storage().bucket();
   await defaultBucket.deleteFiles({prefix: "profilePics/" + userId})
       .then(() => console.log("deleted all files"))
       .catch(function(err) {
