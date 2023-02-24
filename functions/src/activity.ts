@@ -388,6 +388,10 @@ async function generateActivityImage(imageBucket: string, fileName: string,
   const joinFontSize = 40;
   const joinUnderlineSize = 15;
 
+  // remove emojis
+  // eslint-disable-next-line
+  let cleanName = activityName.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
+
   const bucket = admin.storage().bucket();
   const destination = `${imageBucket}${fileName}`;
   let URL = "";
@@ -397,11 +401,13 @@ async function generateActivityImage(imageBucket: string, fileName: string,
       {family: "Roboto", weight: 100});
   registerFont("./assets/fonts/Roboto-Bold.otf",
       {family: "Roboto", weight: 800});
+  // registerFont("./assets/fonts/NotoColorEmoji-Regular.ttf",
+  //     {family: "Roboto", weight: 400});
 
-  console.log("ActivityName: " + activityName);
+  console.log("ActivityName: " + cleanName);
 
   try {
-    const mainImageBuffer = new UltimateTextToImage(activityName, {
+    const mainImageBuffer = new UltimateTextToImage(cleanName, {
       width: size,
       height: size,
       margin: margin,
@@ -418,7 +424,7 @@ async function generateActivityImage(imageBucket: string, fileName: string,
     }).render().toBuffer();
     const mainImage = await getCanvasImage({buffer: mainImageBuffer});
 
-    const underlineImageBuffer = new UltimateTextToImage(activityName, {
+    const underlineImageBuffer = new UltimateTextToImage(cleanName, {
       width: size,
       height: size,
       margin: margin,
