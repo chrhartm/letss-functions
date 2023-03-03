@@ -316,7 +316,7 @@ async function sendEmailOnJoin(change:
   }
 
   const db = admin.firestore();
-  const count = 1;
+  let count = 1;
 
   const counterPath = db.collection("stats")
       .doc(after.location["isoCountryCode"])
@@ -324,13 +324,18 @@ async function sendEmailOnJoin(change:
       .doc(after.location["locality"]);
   await counterPath.get().then((doc) => {
     if (doc.exists) {
-      return counterPath.update({
+      counterPath.update({
         "count": firestore.FieldValue.increment(1),
       });
     } else {
-      return counterPath.set({
+      counterPath.set({
         "count": 1,
       });
+    }
+  });
+  await counterPath.get().then((doc) => {
+    if (doc.exists) {
+      count = doc.data()!.count;
     }
   });
 
