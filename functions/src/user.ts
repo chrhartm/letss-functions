@@ -9,13 +9,11 @@ exports.updateSubscription = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
-          /* TODO uncomment when enforceAppCheck true
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
-                'failed-precondition',
-                'The function must be called from an App Check verified app.')
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
           }
-          */
           const userId = context.auth?context.auth.uid:null;
           if (userId == null) {
             throw new functions.https.HttpsError("unauthenticated",
@@ -72,13 +70,11 @@ exports.markReviewRequested = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
-          /* TODO uncomment when enforceAppCheck true
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
-                'failed-precondition',
-                'The function must be called from an App Check verified app.')
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
           }
-          */
           const userId = context.auth?context.auth.uid:null;
           if (userId == null) {
             throw new functions.https.HttpsError("unauthenticated",
@@ -104,13 +100,11 @@ exports.markSupportRequested = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
-          /* TODO uncomment when enforceAppCheck true
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
-                'failed-precondition',
-                'The function must be called from an App Check verified app.')
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
           }
-          */
           const userId = context.auth?context.auth.uid:null;
           if (userId == null) {
             throw new functions.https.HttpsError("unauthenticated",
@@ -136,13 +130,11 @@ exports.updateLastOnline = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
-          /* TODO uncomment when enforceAppCheck true
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
-                'failed-precondition',
-                'The function must be called from an App Check verified app.')
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
           }
-          */
           const userId = context.auth?context.auth.uid:null;
           if (userId == null) {
             throw new functions.https.HttpsError("unauthenticated",
@@ -168,13 +160,11 @@ exports.getConfig = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
-          /* TODO uncomment when enforceAppCheck true
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
-                'failed-precondition',
-                'The function must be called from an App Check verified app.')
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
           }
-          */
           const userId = context.auth?context.auth.uid:null;
           if (userId == null) {
             throw new functions.https.HttpsError("unauthenticated",
@@ -222,13 +212,11 @@ exports.updateToken = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
-          /* TODO uncomment when enforceAppCheck true
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
-                'failed-precondition',
-                'The function must be called from an App Check verified app.')
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
           }
-          */
           const userId = context.auth?context.auth.uid:null;
           if (userId == null) {
             throw new functions.https.HttpsError("unauthenticated",
@@ -412,13 +400,11 @@ exports.deleteUser = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
-          /* TODO uncomment when enforceAppCheck true
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
-                'failed-precondition',
-                'The function must be called from an App Check verified app.')
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
           }
-          */
           const userId = context.auth?context.auth.uid:null;
           if (userId == null) {
             throw new functions.https.HttpsError("unauthenticated",
