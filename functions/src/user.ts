@@ -184,10 +184,11 @@ exports.getConfig = functions.region("europe-west1")
                     throw new functions.https.HttpsError("not-found",
                         "Person not found");
                   }
-                  const locality = personData.location.locality;
-                  if (locality == "Amsterdam") {
-                    forceAddActivity = true;
-                  }
+                  // TODO make more granular in future
+                  // const locality = personData.location.locality;
+                  // if (locality == "Amsterdam") {
+                  forceAddActivity = true;
+                  // }
                 });
           } catch (error) {
             console.log("error: " + error);
