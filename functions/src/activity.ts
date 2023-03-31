@@ -5,7 +5,6 @@ import https = require("https");
 import {getCanvasImage, registerFont, UltimateTextToImage}
   from "ultimate-text-to-image";
 
-
 exports.like = functions.region("europe-west1")
     .runWith({
       enforceAppCheck: false,
@@ -382,9 +381,11 @@ async function generateActivityImage(imageBucket: string, fileName: string,
   const joinFontSize = 40;
   const joinUnderlineSize = 15;
 
+  console.log("ActivityName: " + activityName);
+
   // remove emojis
   // eslint-disable-next-line
-  let cleanName = activityName.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g, '');
+  let cleanName = activityName.replace(/([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDD10-\uDDFF])/g, '');
 
   const bucket = admin.storage().bucket();
   const destination = `${imageBucket}${fileName}`;
@@ -398,7 +399,7 @@ async function generateActivityImage(imageBucket: string, fileName: string,
   // registerFont("./assets/fonts/NotoColorEmoji-Regular.ttf",
   //     {family: "Roboto", weight: 400});
 
-  console.log("ActivityName: " + cleanName);
+  console.log("CleanName: " + cleanName);
 
   try {
     const mainImageBuffer = new UltimateTextToImage(cleanName, {
