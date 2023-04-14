@@ -11,11 +11,13 @@ exports.like = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
+          /*
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
                 "The function must be called from an App Check verified app.");
           }
+          */
           const userId = context.auth?context.auth.uid:null;
           if (userId == null) {
             throw new functions.https.HttpsError("unauthenticated",
@@ -131,11 +133,13 @@ exports.generateMatches = functions.region("europe-west1")
     })
     .https.onCall(
         async (_data, context) => {
+          /*
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
                 "The function must be called from an App Check verified app.");
           }
+          */
           const N = 30;
           const minN = 100;
           const waitSeconds = 10;
@@ -311,11 +315,13 @@ exports.generateImage = functions.region("europe-west1")
     })
     .https.onCall(
         async (data, context) => {
+          /*
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
                 "The function must be called from an App Check verified app.");
           }
+          */
           const userId = context.auth?context.auth.uid:null;
           if (userId == null) {
             throw new functions.https.HttpsError("unauthenticated",
