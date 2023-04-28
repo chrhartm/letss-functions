@@ -50,7 +50,8 @@ exports.updateSubscription = functions.region("europe-west1")
             await db.collection("users")
                 .doc(userId)
                 .update({"subscription":
-                    {"productId": productId, "timestamp": timestamp}});
+                    {"productId": productId, "timestamp": timestamp},
+                "coins": 50});
           } catch (error) {
             throw new functions.https.HttpsError("unknown",
                 "Couldn't update user.");
@@ -389,7 +390,7 @@ exports.initializeUser = functions.auth
     .user()
     .onCreate(async (user, ) => {
       const db = admin.firestore();
-      const payload = {"coins": 5,
+      const payload = {"coins": 10,
         "lastSupportRequest": firestore.Timestamp.now(),
         "lastOnline": firestore.Timestamp.now(),
         "dateRegistered": firestore.Timestamp.now(),

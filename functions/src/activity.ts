@@ -276,8 +276,8 @@ exports.resetCoins = functions.region("europe-west1")
     .timeZone("Europe/Paris")
     .onRun(() => {
       const db = admin.firestore();
-      const coinsFree = 5;
-      const coinsSupporter = 10;
+      const coinsFree = 10;
+      const coinsSupporter = 50;
       return db.collection("users")
           .get()
           .then((snapshot) => {
