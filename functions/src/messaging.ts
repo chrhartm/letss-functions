@@ -179,6 +179,67 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
           });
     });
 
+exports.pushOnNewActivity = functions.region("europe-west1").firestore
+    .document("/activities/{activityId}")
+    .onCreate((snap, ) => {
+      const activityData = snap.data();
+      // Get data on sender
+      return admin.firestore().collection("persons").doc(activityData.user)
+          .get().then((document) => {
+            if (document.exists == false) {
+              console.log("Couldn't find person: " +
+              activityData.user);
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find person.");
+            }
+            const senderP = document.data();
+            if (senderP == null) {
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find person.");
+            }
+            // Send update to all followers of sender
+            return admin.firestore().collection("followers")
+                .doc(activityData.user).collection("followers")
+                .get().then((querySnapshot) => {
+                  const promises: any[] = [];
+                  querySnapshot.forEach((document) => {
+                    const follower = document.data();
+                    // Get data on receiver
+                    promises.push(admin.firestore().collection("users")
+                        .doc(follower.user).get().then((document) => {
+                          if (document.exists == false) {
+                            console.log("Couldn't find user: " +
+                          follower.user);
+                            throw new functions.https.HttpsError("not-found",
+                                "Couldn't find user.");
+                          }
+                          const receiverU = document.data();
+                          if (receiverU == null) {
+                            throw new functions.https.HttpsError("not-found",
+                                "Couldn't find user.");
+                          }
+                          // Send message
+                          const payload = {
+                            notification: {
+                              title: senderP.name,
+                              body: activityData.name,
+                              type: "activity",
+                            },
+                          };
+                          console.log("Sending activity to " +
+                        follower.user +
+                        ": " + payload);
+                          return admin.messaging()
+                              .sendToDevice(receiverU.token.token, payload)
+                              .then((response) => console.log(response));
+                        }));
+                  });
+                  return Promise.all(promises);
+                });
+          });
+    });
+
+
 exports.alertOnFlag = functions.region("europe-west1").firestore
     .document("/flags/{flagId}")
     .onCreate((snap, ) => {
