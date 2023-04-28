@@ -532,13 +532,115 @@ async function deleteUser(userId: string) {
                             data.activity + " " + err);
                         error = true;
                       });
-
+                  // In case of join, delete join
+                  await db.collection("activities")
+                      .doc(data.activity)
+                      .collection("participants")
+                      .doc(userId)
+                      .delete()
+                      .then(() => console.log(
+                          "deleted participation for activity: " +
+                          data.activity))
+                      .catch(function(err) {
+                        console.log(
+                            "failed to delete participation for activity: " +
+                        data.activity + " " + err);
+                        error = true;
+                      });
                   // }
                   await db.collection("matches")
                       .doc(doc.id)
                       .delete();
                 }));
           });
+  // delete followers
+  // first delete all cases where others follow me then my record of it
+  await db
+      .collection("followers")
+      .doc(userId)
+      .collection("followers")
+      .get()
+      .then(
+          (query) => {
+            return Promise.all(query.docs.map(
+                async (doc) => {
+                  await db
+                      .collection("followers")
+                      .doc(doc.id)
+                      .collection("following")
+                      .doc(userId)
+                      .delete()
+                      .then(() => console.log(
+                          "deleted following for user: " + doc.id))
+                      .catch(function(err) {
+                        console.log(
+                            "failed to delete following for user: " +
+                doc.id + " " + err);
+                        error = true;
+                      });
+                }));
+          });
+  const followers = "followers/" + userId + "/followers";
+  await utils.deleteCollection(db,
+      followers, batchSize)
+      .then((val) => {
+        console.log("Deleted followers ");
+      })
+      .catch((err) => {
+        console.log("Error in followers " + err);
+        error = true;
+      });
+  // first delete all cases where following others, then following
+  await db
+      .collection("followers")
+      .doc(userId)
+      .collection("following")
+      .get()
+      .then(
+          (query) => {
+            return Promise.all(query.docs.map(
+                async (doc) => {
+                  await db
+                      .collection("followers")
+                      .doc(doc.id)
+                      .collection("followers")
+                      .doc(userId)
+                      .delete()
+                      .then(() => console.log(
+                          "deleted follower for user: " + doc.id))
+                      .catch(function(err) {
+                        console.log(
+                            "failed to delete follower for user: " +
+                    doc.id + " " + err);
+                        error = true;
+                      });
+                }));
+          });
+
+
+  const following = "following/" + userId + "/following";
+  await utils.deleteCollection(db,
+      following, batchSize)
+      .then((val) => {
+        console.log("Deleted following ");
+      })
+      .catch((err) => {
+        console.log("Error in following " + err);
+        error = true;
+      });
+  await db
+      .collection("followers")
+      .doc(userId)
+      .delete()
+      .then(() => console.log(
+          "deleted followers for user: " + userId))
+      .catch(function(err) {
+        console.log(
+            "failed to delete followers for user: " +
+        userId + " " + err);
+        error = true;
+      });
+
   // delete chat messages and anonymize chat
   await db
       .collection("chats")
