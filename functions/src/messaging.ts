@@ -221,9 +221,9 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                           // Send message
                           const payload = {
                             notification: {
-                              title: senderP.name,
+                              title: senderP.name + " posted a new idea",
                               body: activityData.name,
-                              type: "activity",
+                              type: "message",
                             },
                           };
                           console.log("Sending activity to " +
