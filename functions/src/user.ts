@@ -676,21 +676,29 @@ async function deleteUser(userId: string) {
                     console.log("Error in promise " + err);
                     error = true;
                   });
-              const users = doc.data().users;
-              const index = users.indexOf(userId, 0);
-              const deletemessage = {
-                "message": "This user deleted their account",
-                "user": "DELETED",
-                "timestamp": firestore.Timestamp.now()};
-              users[index] = "DELETED";
-              await db.collection("chats")
-                  .doc(doc.id)
-                  .set({"status": doc.data().status, "read": [],
-                    "users": users, "lastMessage": deletemessage});
-              await db.collection("chats")
-                  .doc(doc.id)
-                  .collection("messages")
-                  .add(deletemessage);
+
+              if (doc.data().activityData == null) {
+                const users = doc.data().users;
+                const index = users.indexOf(userId, 0);
+                const deletemessage = {
+                  "message": "This user deleted their account",
+                  "user": "DELETED",
+                  "timestamp": firestore.Timestamp.now()};
+                users[index] = "DELETED";
+                await db.collection("chats")
+                    .doc(doc.id)
+                    .update({"status": doc.data().status, "read": [],
+                      "users": users, "lastMessage": deletemessage});
+                await db.collection("chats")
+                    .doc(doc.id)
+                    .collection("messages")
+                    .add(deletemessage);
+              } else {
+                await db.collection("chats")
+                    .doc(doc.id)
+                    .update({"users":
+                      firestore.FieldValue.arrayRemove(userId)});
+              }
             }));
           }
       )
@@ -721,21 +729,28 @@ async function deleteUser(userId: string) {
                     console.log("Error in promise " + err);
                     error = true;
                   });
-              const users = doc.data().users;
-              const index = users.indexOf(userId, 0);
-              const deletemessage = {
-                "message": "This user deleted their account",
-                "user": "DELETED",
-                "timestamp": firestore.Timestamp.now()};
-              users[index] = "DELETED";
-              await db.collection("chats")
-                  .doc(doc.id)
-                  .set({"status": doc.data().status, "read": [],
-                    "users": users, "lastMessage": deletemessage});
-              await db.collection("chats")
-                  .doc(doc.id)
-                  .collection("messages")
-                  .add(deletemessage);
+              if (doc.data().activityData == null) {
+                const usersLeft = doc.data().usersLeft;
+                const index = usersLeft.indexOf(userId, 0);
+                const deletemessage = {
+                  "message": "This user deleted their account",
+                  "user": "DELETED",
+                  "timestamp": firestore.Timestamp.now()};
+                usersLeft[index] = "DELETED";
+                await db.collection("chats")
+                    .doc(doc.id)
+                    .update({"status": doc.data().status, "read": [],
+                      "usersLeft": usersLeft, "lastMessage": deletemessage});
+                await db.collection("chats")
+                    .doc(doc.id)
+                    .collection("messages")
+                    .add(deletemessage);
+              } else {
+                await db.collection("chats")
+                    .doc(doc.id)
+                    .update({"usersLeft":
+                      firestore.FieldValue.arrayRemove(userId)});
+              }
             }));
           }
       )
