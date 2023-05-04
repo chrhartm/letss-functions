@@ -127,15 +127,63 @@ exports.pushOnLike = functions.region("europe-west1").firestore
 
 exports.pushOnMessage = functions.region("europe-west1").firestore
     .document("/chats/{chatId}")
-    .onUpdate((change, ) => {
+    .onUpdate(async (change, ) => {
       const beforeM = change.before.data();
       const afterM = change.after.data();
+
+      // If a user moved to usersLeft, then update activity
+      const activityUid = beforeM.activityData.uid;
+      if (beforeM.usersLeft.length != afterM.usersLeft.length &&
+        activityUid != null) {
+        console.log("before first await");
+        await admin.firestore().collection("activities")
+            .doc(activityUid)
+            .get().then((document) => {
+              if (document.exists == false) {
+                console.log("Couldn't find activity: " + activityUid);
+                return;
+              }
+              const beforeA = document.data();
+              if (beforeA == null) {
+                console.log("Couldn't find activity II: " + activityUid);
+                return;
+              }
+              if (afterM.users != null && afterM.usersLeft != null) {
+                console.log("updating participants");
+                const participants = afterM.users;
+                const myIndex = participants.indexOf(
+                    beforeM.activityData.user, 0);
+                console.log("Index: " + myIndex);
+                if (myIndex > -1) {
+                  participants.splice(myIndex, 1);
+                }
+                console.log(participants);
+                return admin.firestore().collection("activities")
+                    .doc(activityUid)
+                    .update({"participants": participants,
+                      "participantsLeft": afterM.usersLeft})
+                    .catch(() => console.log("couldn't update activity"));
+              } else {
+                console.log("Null users");
+                return;
+              }
+            }).catch(() => console.log("Error in updating activity"));
+      } else {
+        console.log("in else");
+        console.log(beforeM.usersLeft);
+        console.log(afterM.usersLeft);
+        console.log(activityUid);
+      }
+
       // Make sure sender changed
       if (beforeM.lastMessage.user == afterM.lastMessage.user) {
         console.log("Sender didn't change.");
         return null;
       }
-      return admin.firestore().collection("users").doc(beforeM.lastMessage.user)
+
+      await admin.firestore()
+          .collection("users")
+          .doc(beforeM.lastMessage.user)
           .get().then((document) => {
             if (document.exists == false) {
               console.log("Couldn't find user: " +
@@ -177,6 +225,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                       .then((response) => console.log(response));
                 });
           });
+      return;
     });
 
 exports.pushOnNewActivity = functions.region("europe-west1").firestore
