@@ -535,9 +535,8 @@ async function deleteUser(userId: string) {
                   // In case of join, delete join
                   await db.collection("activities")
                       .doc(data.activity)
-                      .collection("participants")
-                      .doc(userId)
-                      .delete()
+                      .update({"participants":
+                      firestore.FieldValue.arrayRemove(userId)})
                       .then(() => console.log(
                           "deleted participation for activity: " +
                           data.activity))
@@ -547,7 +546,21 @@ async function deleteUser(userId: string) {
                         data.activity + " " + err);
                         error = true;
                       });
-                  // }
+                  // In case of join, delete join
+                  await db.collection("activities")
+                      .doc(data.activity)
+                      .update({"participantsLeft":
+                      firestore.FieldValue.arrayRemove(userId)})
+                      .then(() => console.log(
+                          "deleted participLeft for activity: " +
+                                        data.activity))
+                      .catch(function(err) {
+                        console.log(
+                            "failed to delete participLeft for activity: " +
+                                      data.activity + " " + err);
+                        error = true;
+                      });
+
                   await db.collection("matches")
                       .doc(doc.id)
                       .delete();
@@ -658,6 +671,51 @@ async function deleteUser(userId: string) {
                   .then((val) => {
                     console.log("Deleted messages on own chat: " +
                         val);
+                  })
+                  .catch((err) => {
+                    console.log("Error in promise " + err);
+                    error = true;
+                  });
+              const users = doc.data().users;
+              const index = users.indexOf(userId, 0);
+              const deletemessage = {
+                "message": "This user deleted their account",
+                "user": "DELETED",
+                "timestamp": firestore.Timestamp.now()};
+              users[index] = "DELETED";
+              await db.collection("chats")
+                  .doc(doc.id)
+                  .set({"status": doc.data().status, "read": [],
+                    "users": users, "lastMessage": deletemessage});
+              await db.collection("chats")
+                  .doc(doc.id)
+                  .collection("messages")
+                  .add(deletemessage);
+            }));
+          }
+      )
+      .catch(function(err) {
+        console.log("Error in query " + err);
+        error = true;
+      });
+
+  // delete chat messages and anonymize chat
+  await db
+      .collection("chats")
+      .where("usersLeft", "array-contains", userId)
+      .get()
+      .then(
+          (query) => {
+            return Promise.all(query.docs.map(async (doc) => {
+              const collection = "chats/"+doc.id+"/messages";
+              console.log("Attempting delete for : " + collection);
+              const query = db.collection(collection).where("user",
+                  "==", userId);
+              await utils.deleteQueryResults(db,
+                  query, batchSize)
+                  .then((val) => {
+                    console.log("Deleted messages on own leftChat: " +
+                      val);
                   })
                   .catch((err) => {
                     console.log("Error in promise " + err);
