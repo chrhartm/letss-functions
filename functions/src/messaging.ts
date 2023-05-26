@@ -252,17 +252,17 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                 .get().then((querySnapshot) => {
                   const promises: any[] = [];
                   querySnapshot.forEach((document) => {
-                    const follower = document.data();
+                    const follower = document.id;
                     // Get data on receiver
                     promises.push(admin.firestore().collection("users")
-                        .doc(follower.user).get().then((document) => {
-                          if (document.exists == false) {
+                        .doc(follower).get().then((doc) => {
+                          if (doc.exists == false) {
                             console.log("Couldn't find user: " +
-                          follower.user);
+                          follower);
                             throw new functions.https.HttpsError("not-found",
                                 "Couldn't find user.");
                           }
-                          const receiverU = document.data();
+                          const receiverU = doc.data();
                           if (receiverU == null) {
                             throw new functions.https.HttpsError("not-found",
                                 "Couldn't find user.");
@@ -276,14 +276,67 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                             },
                           };
                           console.log("Sending activity to " +
-                        follower.user +
+                        follower +
                         ": " + payload);
+
                           return admin.messaging()
                               .sendToDevice(receiverU.token.token, payload)
                               .then((response) => console.log(response));
                         }));
                   });
                   return Promise.all(promises);
+                });
+          });
+    });
+
+exports.pushOnFollower = functions.region("europe-west1").firestore
+    .document("/followers/{personId}/followers/{followerId}")
+    .onCreate((snap, context) => {
+      const follower = snap.id;
+      const personId = context.params.personId;
+      // Get name of follower
+      return admin.firestore().collection("persons").doc(follower)
+          .get().then((document) => {
+            if (document.exists == false) {
+              console.log("Couldn't find person: " +
+              follower);
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find person.");
+            }
+            const followerP = document.data();
+            if (followerP == null) {
+              throw new functions.https.HttpsError("not-found",
+                  "Couldn't find person.");
+            }
+
+            // Send message to person that they have a new follower
+            return admin.firestore().collection("users")
+                .doc(personId).get().then((doc) => {
+                  if (doc.exists == false) {
+                    console.log("Couldn't find user: " +
+                  personId);
+                    throw new functions.https.HttpsError("not-found",
+                        "Couldn't find user.");
+                  }
+                  const personU = doc.data();
+                  if (personU == null) {
+                    throw new functions.https.HttpsError("not-found",
+                        "Couldn't find user.");
+                  }
+                  // Send message
+                  const payload = {
+                    notification: {
+                      title: followerP.name + " started following you",
+                      body: "Follow them to get notified" +
+                        " when they plan something",
+                      type: "message",
+                    },
+                  };
+                  console.log("Sending follower to " +
+                personId);
+                  return admin.messaging()
+                      .sendToDevice(personU.token.token, payload)
+                      .then((response) => console.log(response));
                 });
           });
     });
