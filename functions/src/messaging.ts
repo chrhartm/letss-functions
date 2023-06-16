@@ -60,6 +60,10 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                             body: like.message,
                             type: "like",
                           },
+                          data: {
+                            link: "https://letss.app/myactivity/" +
+                              context.params.activityId,
+                          },
                         };
                         console.log("Sending message to " +
                             activityData.user +
@@ -216,6 +220,9 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                       body: afterM.lastMessage.message,
                       type: "message",
                     },
+                    data: {
+                      link: "https://letss.app/chat/" + change.after.id,
+                    },
                   };
                   console.log("Sending message to " +
                       beforeM.lastMessage.user +
@@ -274,6 +281,9 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                               body: activityData.name,
                               type: "message",
                             },
+                            data: {
+                              link: "https://letss.app/activity/" + snap.id,
+                            },
                           };
                           console.log("Sending activity to " +
                         follower +
@@ -330,6 +340,9 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
                       body: "Follow them to get notified" +
                         " when they plan something",
                       type: "message",
+                    },
+                    data: {
+                      link: "https://letss.app/profile/person/" + follower,
                     },
                   };
                   console.log("Sending follower to " +
