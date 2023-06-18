@@ -6,7 +6,6 @@ exports.pushOnLike = functions.region("europe-west1").firestore
     .document("/activities/{activityId}/likes/{likeId}")
     .onCreate((snap, context) => {
       const db = admin.firestore();
-      const like = snap.data();
       // Get data on sender
       return db.collection("persons").doc(snap.id)
           .get().then((senderDoc) => {
@@ -56,8 +55,8 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         const lastOnline = receiverU.lastOnline.seconds;
                         const payload = {
                           notification: {
-                            title: senderP.name,
-                            body: like.message,
+                            title: activityData.name,
+                            body: senderP.name + " wants to join",
                             type: "like",
                           },
                           data: {
@@ -131,59 +130,64 @@ exports.pushOnLike = functions.region("europe-west1").firestore
 
 exports.pushOnMessage = functions.region("europe-west1").firestore
     .document("/chats/{chatId}")
-    .onUpdate(async (change, ) => {
+    .onUpdate(async (change, context) => {
       const beforeM = change.before.data();
       const afterM = change.after.data();
 
       // If a user moved to usersLeft, then update activity
-      const activityUid = beforeM.activityData.uid;
-      if (beforeM.usersLeft.length != afterM.usersLeft.length &&
-        activityUid != null) {
-        console.log("before first await");
-        await admin.firestore().collection("activities")
-            .doc(activityUid)
-            .get().then((document) => {
-              if (document.exists == false) {
-                console.log("Couldn't find activity: " + activityUid);
-                return;
-              }
-              const beforeA = document.data();
-              if (beforeA == null) {
-                console.log("Couldn't find activity II: " + activityUid);
-                return;
-              }
-              if (afterM.users != null && afterM.usersLeft != null) {
-                console.log("updating participants");
-                const participants = afterM.users;
-                const myIndex = participants.indexOf(
-                    beforeM.activityData.user, 0);
-                console.log("Index: " + myIndex);
-                if (myIndex > -1) {
-                  participants.splice(myIndex, 1);
+      if (beforeM.activityData != null) {
+        const activityUid = beforeM.activityData.uid;
+        if (beforeM.usersLeft.length != afterM.usersLeft.length &&
+          activityUid != null) {
+          console.log("before first await");
+          await admin.firestore().collection("activities")
+              .doc(activityUid)
+              .get().then((document) => {
+                if (document.exists == false) {
+                  console.log("Couldn't find activity: " + activityUid);
+                  return;
                 }
-                console.log(participants);
-                return admin.firestore().collection("activities")
-                    .doc(activityUid)
-                    .update({"participants": participants,
-                      "participantsLeft": afterM.usersLeft})
-                    .catch(() => console.log("couldn't update activity"));
-              } else {
-                console.log("Null users");
-                return;
-              }
-            }).catch(() => console.log("Error in updating activity"));
-      } else {
-        console.log("in else");
-        console.log(beforeM.usersLeft);
-        console.log(afterM.usersLeft);
-        console.log(activityUid);
+                const beforeA = document.data();
+                if (beforeA == null) {
+                  console.log("Couldn't find activity II: " + activityUid);
+                  return;
+                }
+                if (afterM.users != null && afterM.usersLeft != null) {
+                  console.log("updating participants");
+                  const participants = afterM.users;
+                  const myIndex = participants.indexOf(
+                      beforeM.activityData.user, 0);
+                  console.log("Index: " + myIndex);
+                  if (myIndex > -1) {
+                    participants.splice(myIndex, 1);
+                  }
+                  console.log(participants);
+                  return admin.firestore().collection("activities")
+                      .doc(activityUid)
+                      .update({"participants": participants,
+                        "participantsLeft": afterM.usersLeft})
+                      .catch(() => console.log("couldn't update activity"));
+                } else {
+                  console.log("Null users");
+                  return;
+                }
+              }).catch(() => console.log("Error in updating activity"));
+        } else {
+          console.log("in else");
+          console.log(beforeM.usersLeft);
+          console.log(afterM.usersLeft);
+          console.log(activityUid);
+        }
       }
 
       // Make sure sender changed
+      // Actually messaging apps don't do this, so we don't either
+      /*
       if (beforeM.lastMessage.user == afterM.lastMessage.user) {
         console.log("Sender didn't change.");
         return null;
       }
+      */
 
       await admin.firestore()
           .collection("users")
@@ -221,7 +225,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                       type: "message",
                     },
                     data: {
-                      link: "https://letss.app/chat/" + change.after.id,
+                      link: "https://letss.app/chat/" + context.params.chatId,
                     },
                   };
                   console.log("Sending message to " +
