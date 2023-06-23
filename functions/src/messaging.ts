@@ -57,7 +57,6 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                           notification: {
                             title: activityData.name,
                             body: senderP.name + " wants to join",
-                            type: "like",
                           },
                           data: {
                             link: "https://letss.app/myactivity/" +
@@ -69,7 +68,8 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                             ": " + payload);
                         // Send push notification
                         return admin.messaging()
-                            .sendToDevice(receiverU.token.token, payload)
+                            .sendToDevice(receiverU.token.token, payload,
+                                {contentAvailable: true})
                             .then((response) => {
                               console.log("Successfully sent message:",
                                   response);
@@ -222,7 +222,6 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                     notification: {
                       title: afterP.name,
                       body: afterM.lastMessage.message,
-                      type: "message",
                     },
                     data: {
                       link: "https://letss.app/chat/" + context.params.chatId,
@@ -232,7 +231,8 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                       beforeM.lastMessage.user +
                       ": " + payload);
                   return admin.messaging()
-                      .sendToDevice(beforeU.token.token, payload)
+                      .sendToDevice(beforeU.token.token, payload,
+                          {contentAvailable: true})
                       .then((response) => console.log(response));
                 });
           });
@@ -283,7 +283,6 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                             notification: {
                               title: senderP.name + " posted a new idea",
                               body: activityData.name,
-                              type: "message",
                             },
                             data: {
                               link: "https://letss.app/activity/" + snap.id,
@@ -294,7 +293,8 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                         ": " + payload);
 
                           return admin.messaging()
-                              .sendToDevice(receiverU.token.token, payload)
+                              .sendToDevice(receiverU.token.token, payload,
+                                  {contentAvailable: true})
                               .then((response) => console.log(response));
                         }));
                   });
@@ -343,7 +343,6 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
                       title: followerP.name + " started following you",
                       body: "Follow them to get notified" +
                         " when they plan something",
-                      type: "message",
                     },
                     data: {
                       link: "https://letss.app/profile/person/" + follower,
@@ -352,7 +351,8 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
                   console.log("Sending follower to " +
                 personId);
                   return admin.messaging()
-                      .sendToDevice(personU.token.token, payload)
+                      .sendToDevice(personU.token.token, payload,
+                          {contentAvailable: true})
                       .then((response) => console.log(response));
                 });
           });
