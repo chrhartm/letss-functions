@@ -183,6 +183,7 @@ exports.getConfig = functions.region("europe-west1")
           }
           const db = admin.firestore();
           let forceAddActivity = false;
+          const searchDays = 1000;
 
           console.log("userid: " + userId);
 
@@ -210,7 +211,7 @@ exports.getConfig = functions.region("europe-west1")
             "forceAddActivity": forceAddActivity,
             "activityAddPromptEveryTenX": 2,
             "minChatsForReview": 3,
-            "searchDays": 0,
+            "searchDays": searchDays,
             "supportPitch": "Enjoying our app? Buy us a coffee and" +
               " get a supporter badge on your profile.",
             "supportRequestInterval": 360,
