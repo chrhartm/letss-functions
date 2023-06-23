@@ -243,6 +243,8 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
     .document("/activities/{activityId}")
     .onCreate((snap, ) => {
       const activityData = snap.data();
+      const followerIds: string[] = [];
+      const minMessages = 10;
       // Get data on sender
       return admin.firestore().collection("persons").doc(activityData.user)
           .get().then((document) => {
@@ -257,13 +259,15 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
               throw new functions.https.HttpsError("not-found",
                   "Couldn't find person.");
             }
+            const messagePromises: any[] = [];
             // Send update to all followers of sender
-            return admin.firestore().collection("followers")
+            messagePromises.push(admin.firestore().collection("followers")
                 .doc(activityData.user).collection("followers")
                 .get().then((querySnapshot) => {
                   const promises: any[] = [];
                   querySnapshot.forEach((document) => {
                     const follower = document.id;
+                    followerIds.push(follower);
                     // Get data on receiver
                     promises.push(admin.firestore().collection("users")
                         .doc(follower).get().then((doc) => {
@@ -299,7 +303,63 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                         }));
                   });
                   return Promise.all(promises);
-                });
+                }));
+            /* If sender has less than 10 followers,
+          send to random users that have the same location
+          as the activity
+          */
+            if (followerIds.length < minMessages) {
+              messagePromises.push(admin.firestore().collection("persons")
+                  .where("location.locality", "==",
+                      activityData.location.locality)
+                  .limit(minMessages)
+                  .get().then((querySnapshot) => {
+                    const promises: any[] = [];
+                    querySnapshot.forEach((document) => {
+                      const user = document.id;
+                      // Ignore followers
+                      if (followerIds.includes(user)) {
+                        return;
+                      }
+                      // Get data on receiver
+                      promises.push(admin.firestore().collection("users")
+                          .doc(user).get().then((doc) => {
+                            if (doc.exists == false) {
+                              console.log("Couldn't find user: " +
+                          user);
+                              throw new functions.https.HttpsError("not-found",
+                                  "Couldn't find user.");
+                            }
+                            const receiverU = doc.data();
+                            if (receiverU == null) {
+                              throw new functions.https.HttpsError("not-found",
+                                  "Couldn't find user.");
+                            }
+                            // Send message
+                            const payload = {
+                              notification: {
+                                title: activityData.name,
+                                body: senderP.name + " is new to Letss. " +
+                                "Check out their idea and follow them!",
+                              },
+                              data: {
+                                link: "https://letss.app/activity/" + snap.id,
+                              },
+                            };
+                            console.log("Sending activity to " +
+                        user +
+                        ": " + payload);
+
+                            return admin.messaging()
+                                .sendToDevice(receiverU.token.token, payload,
+                                    {contentAvailable: true})
+                                .then((response) => console.log(response));
+                          }));
+                    });
+                    return Promise.all(promises);
+                  }));
+            }
+            return Promise.all(messagePromises);
           });
     });
 
