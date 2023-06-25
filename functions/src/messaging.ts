@@ -138,13 +138,13 @@ exports.pushOnLike = functions.region("europe-west1").firestore
 exports.pushOnMessage = functions.region("europe-west1").firestore
     .document("/chats/{chatId}")
     .onUpdate(async (change, context) => {
-      const beforeM = change.before.data();
-      const afterM = change.after.data();
+      const beforeC = change.before.data();
+      const afterC = change.after.data();
 
       // If a user moved to usersLeft, then update activity
-      if (beforeM.activityData != null) {
-        const activityUid = beforeM.activityData.uid;
-        if (beforeM.usersLeft.length != afterM.usersLeft.length &&
+      if (beforeC.activityData != null) {
+        const activityUid = beforeC.activityData.uid;
+        if (beforeC.usersLeft.length != afterC.usersLeft.length &&
           activityUid != null) {
           console.log("before first await");
           await admin.firestore().collection("activities")
@@ -159,11 +159,11 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                   console.log("Couldn't find activity II: " + activityUid);
                   return;
                 }
-                if (afterM.users != null && afterM.usersLeft != null) {
+                if (afterC.users != null && afterC.usersLeft != null) {
                   console.log("updating participants");
-                  const participants = afterM.users;
+                  const participants = afterC.users;
                   const myIndex = participants.indexOf(
-                      beforeM.activityData.user, 0);
+                      beforeC.activityData.user, 0);
                   console.log("Index: " + myIndex);
                   if (myIndex > -1) {
                     participants.splice(myIndex, 1);
@@ -172,7 +172,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                   return admin.firestore().collection("activities")
                       .doc(activityUid)
                       .update({"participants": participants,
-                        "participantsLeft": afterM.usersLeft})
+                        "participantsLeft": afterC.usersLeft})
                       .catch(() => console.log("couldn't update activity"));
                 } else {
                   console.log("Null users");
@@ -181,59 +181,66 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
               }).catch(() => console.log("Error in updating activity"));
         } else {
           console.log("in else");
-          console.log(beforeM.usersLeft);
-          console.log(afterM.usersLeft);
+          console.log(beforeC.usersLeft);
+          console.log(afterC.usersLeft);
           console.log(activityUid);
         }
       }
 
-      // Make sure sender changed
-      // Actually messaging apps don't do this, so we don't either
-      /*
-      if (beforeM.lastMessage.user == afterM.lastMessage.user) {
-        console.log("Sender didn't change.");
+      // Make sure new message before sending notifications
+      if (beforeC.lastMessage.timestamp == afterC.lastMessage.timestamp) {
+        console.log("Message didn't change.");
         return null;
       }
-      */
 
-      await admin.firestore()
-          .collection("users")
-          .doc(beforeM.lastMessage.user)
+      await admin.firestore().collection("persons")
+          .doc(afterC.lastMessage.user)
           .get().then((document) => {
             if (document.exists == false) {
-              console.log("Couldn't find user: " +
-                  beforeM.lastMessage.user);
+              console.log("Couldn't find person: " +
+                afterC.lastMessage.user);
               throw new functions.https.HttpsError("not-found",
-                  "Couldn't find user.");
+                  "Couldn't find person.");
             }
-            const beforeU = document.data();
-            if (beforeU == null) {
+            const senderP = document.data();
+            if (senderP == null) {
               throw new functions.https.HttpsError("not-found",
-                  "Couldn't find user.");
+                  "Couldn't find person.");
             }
-            return admin.firestore().collection("persons")
-                .doc(afterM.lastMessage.user)
-                .get().then((document) => {
-                  if (document.exists == false) {
-                    console.log("Couldn't find person: " +
-                        afterM.lastMessage.user);
-                    throw new functions.https.HttpsError("not-found",
-                        "Couldn't find person.");
-                  }
-                  const afterP = document.data();
-                  if (afterP == null) {
-                    throw new functions.https.HttpsError("not-found",
-                        "Couldn't find person.");
-                  }
+            // look through all users in chat and send message
+            // to all except sender
+            const receiverPromises = [];
+            for (const user of afterC.users) {
+              if (user != afterC.lastMessage.user) {
+                receiverPromises.push(admin.firestore().collection("users")
+                    .doc(user)
+                    .get().then((document) => {
+                      if (document.exists == false) {
+                        console.log("Couldn't find user: " + user);
+                        return;
+                      }
+                      const userData = document.data();
+                      if (userData == null) {
+                        console.log("Couldn't find user II: " + user);
+                        return;
+                      }
+                      return userData;
+                    }));
+              }
+            }
+            return Promise.all(receiverPromises).then((receivers) => {
+              for (const receiver of receivers) {
+                if (receiver != null && receiver.token != null) {
                   const message = {
                     notification: {
-                      title: afterP.name,
-                      body: afterM.lastMessage.message,
+                      title: senderP.name,
+                      body: afterC.lastMessage.message,
                     },
                     data: {
-                      link: "https://letss.app/chat/" + context.params.chatId,
+                      link: "https://letss.app/chat/" +
+                      context.params.chatId,
                     },
-                    token: beforeU.token.token,
+                    token: receiver.token.token,
                     apns: {
                       payload: {
                         aps: {
@@ -243,12 +250,16 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                     },
                   };
                   console.log("Sending message to " +
-                      beforeM.lastMessage.user +
-                      ": " + message);
+                    receiver.name +
+                    ": " + message);
                   return admin.messaging()
                       .send(message)
                       .then((response) => console.log(response));
-                });
+                }
+              }
+              return;
+            }
+            );
           });
       return;
     });
