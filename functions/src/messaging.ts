@@ -53,7 +53,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         const lastEmail = receiverU.lastEmail==null?null:
                             receiverU.lastEmail.seconds;
                         const lastOnline = receiverU.lastOnline.seconds;
-                        const payload = {
+                        const message = {
                           notification: {
                             title: activityData.name,
                             body: senderP.name + " wants to join",
@@ -62,14 +62,21 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                             link: "https://letss.app/myactivity/" +
                               context.params.activityId,
                           },
+                          token: receiverU.token.token,
+                          apns: {
+                            payload: {
+                              aps: {
+                                "content-available": 1,
+                              },
+                            },
+                          },
                         };
                         console.log("Sending message to " +
                             activityData.user +
-                            ": " + payload);
+                            ": " + message);
                         // Send push notification
                         return admin.messaging()
-                            .sendToDevice(receiverU.token.token, payload,
-                                {contentAvailable: true})
+                            .send(message)
                             .then((response) => {
                               console.log("Successfully sent message:",
                                   response);
@@ -218,7 +225,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                     throw new functions.https.HttpsError("not-found",
                         "Couldn't find person.");
                   }
-                  const payload = {
+                  const message = {
                     notification: {
                       title: afterP.name,
                       body: afterM.lastMessage.message,
@@ -226,13 +233,20 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                     data: {
                       link: "https://letss.app/chat/" + context.params.chatId,
                     },
+                    token: beforeU.token.token,
+                    apns: {
+                      payload: {
+                        aps: {
+                          "content-available": 1,
+                        },
+                      },
+                    },
                   };
                   console.log("Sending message to " +
                       beforeM.lastMessage.user +
-                      ": " + payload);
+                      ": " + message);
                   return admin.messaging()
-                      .sendToDevice(beforeU.token.token, payload,
-                          {contentAvailable: true})
+                      .send(message)
                       .then((response) => console.log(response));
                 });
           });
@@ -283,7 +297,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                                 "Couldn't find user.");
                           }
                           // Send message
-                          const payload = {
+                          const message = {
                             notification: {
                               title: senderP.name + " posted a new idea",
                               body: activityData.name,
@@ -291,14 +305,21 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                             data: {
                               link: "https://letss.app/activity/" + snap.id,
                             },
+                            token: receiverU.token.token,
+                            apns: {
+                              payload: {
+                                aps: {
+                                  "content-available": 1,
+                                },
+                              },
+                            },
                           };
                           console.log("Sending activity to " +
                         follower +
-                        ": " + payload);
+                        ": " + message);
 
                           return admin.messaging()
-                              .sendToDevice(receiverU.token.token, payload,
-                                  {contentAvailable: true})
+                              .send(message)
                               .then((response) => console.log(response));
                         }));
                   });
@@ -336,7 +357,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                                   "Couldn't find user.");
                             }
                             // Send message
-                            const payload = {
+                            const message = {
                               notification: {
                                 title: activityData.name,
                                 body: senderP.name + " is new to Letss. " +
@@ -345,14 +366,21 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                               data: {
                                 link: "https://letss.app/activity/" + snap.id,
                               },
+                              token: receiverU.token.token,
+                              apns: {
+                                payload: {
+                                  aps: {
+                                    "content-available": 1,
+                                  },
+                                },
+                              },
                             };
                             console.log("Sending activity to " +
                         user +
-                        ": " + payload);
+                        ": " + message);
 
                             return admin.messaging()
-                                .sendToDevice(receiverU.token.token, payload,
-                                    {contentAvailable: true})
+                                .send(message)
                                 .then((response) => console.log(response));
                           }));
                     });
@@ -398,7 +426,7 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
                         "Couldn't find user.");
                   }
                   // Send message
-                  const payload = {
+                  const message = {
                     notification: {
                       title: followerP.name + " started following you",
                       body: "Follow them to get notified" +
@@ -407,12 +435,19 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
                     data: {
                       link: "https://letss.app/profile/person/" + follower,
                     },
+                    token: personU.token.token,
+                    apns: {
+                      payload: {
+                        aps: {
+                          "content-available": 1,
+                        },
+                      },
+                    },
                   };
                   console.log("Sending follower to " +
                 personId);
                   return admin.messaging()
-                      .sendToDevice(personU.token.token, payload,
-                          {contentAvailable: true})
+                      .send(message)
                       .then((response) => console.log(response));
                 });
           });
