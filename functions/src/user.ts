@@ -337,7 +337,7 @@ async function sendEmailOnJoin(change:
     }
   });
   await counterPath.get().then((doc) => {
-    if (doc.exists) {
+    if (doc.exists && doc.data() != null) {
       count = doc.data()!.count;
     }
   });
@@ -597,7 +597,7 @@ async function deleteUser(userId: string) {
   const followers = "followers/" + userId + "/followers";
   await utils.deleteCollection(db,
       followers, batchSize)
-      .then((val) => {
+      .then(() => {
         console.log("Deleted followers ");
       })
       .catch((err) => {
@@ -635,7 +635,7 @@ async function deleteUser(userId: string) {
   const following = "following/" + userId + "/following";
   await utils.deleteCollection(db,
       following, batchSize)
-      .then((val) => {
+      .then(() => {
         console.log("Deleted following ");
       })
       .catch((err) => {

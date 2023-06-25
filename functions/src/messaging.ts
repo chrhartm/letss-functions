@@ -259,12 +259,12 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
               throw new functions.https.HttpsError("not-found",
                   "Couldn't find person.");
             }
-            const messagePromises: any[] = [];
+            const messagePromises: Promise<any>[] = [];
             // Send update to all followers of sender
             messagePromises.push(admin.firestore().collection("followers")
                 .doc(activityData.user).collection("followers")
                 .get().then((querySnapshot) => {
-                  const promises: any[] = [];
+                  const promises: Promise<any>[] = [];
                   querySnapshot.forEach((document) => {
                     const follower = document.id;
                     followerIds.push(follower);
@@ -314,7 +314,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                       activityData.location.locality)
                   .limit(minMessages)
                   .get().then((querySnapshot) => {
-                    const promises: any[] = [];
+                    const promises: Promise<any>[] = [];
                     querySnapshot.forEach((document) => {
                       const user = document.id;
                       // Ignore followers
