@@ -131,6 +131,39 @@ exports.markSupportRequested = functions.region("europe-west1")
           }
         });
 
+exports.markNotificationsRequested = functions.region("europe-west1")
+    .runWith({
+      enforceAppCheck: false,
+    })
+    .https.onCall(
+        async (data, context) => {
+          /*
+          if (context.app == undefined) {
+            throw new functions.https.HttpsError(
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
+          }
+          */
+          const userId = context.auth?context.auth.uid:null;
+          if (userId == null) {
+            throw new functions.https.HttpsError("unauthenticated",
+                "Not authenticated");
+          }
+          const db = admin.firestore();
+
+          console.log("userid: " + userId);
+
+          try {
+            await db.collection("users")
+                .doc(userId)
+                .update({"lastNotificationsRequest":
+                  firestore.Timestamp.now()});
+          } catch (error) {
+            throw new functions.https.HttpsError("unknown",
+                "Couldn't update user.");
+          }
+        });
+
 exports.updateLastOnline = functions.region("europe-west1")
     .runWith({
       enforceAppCheck: false,
