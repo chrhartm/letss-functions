@@ -407,6 +407,13 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
     .onCreate((snap, context) => {
       const follower = snap.id;
       const personId = context.params.personId;
+      const trigger = snap.data()["trigger"];
+      if (trigger != null) {
+        console.log("Trigger: " + trigger);
+        if (trigger != "FOLLOW") {
+          return;
+        }
+      }
       // Get name of follower
       return admin.firestore().collection("persons").doc(follower)
           .get().then((document) => {
