@@ -248,6 +248,24 @@ exports.getConfig = functions.region("europe-west1")
             "supportPitch": "Enjoying our app? Buy us a coffee and" +
               " get a supporter badge on your profile.",
             "supportRequestInterval": 360,
+            "hubs": [
+              {"name": "Amsterdam",
+                "lat": 52.370216,
+                "lng": 4.895168,
+                "emoji": "🇳🇱"},
+              {"name": "Berlin",
+                "lat": 52.520008,
+                "lng": 13.404954,
+                "emoji": "🇩🇪"},
+              {"name": "Zurich",
+                "lat": 47.376888,
+                "lng": 8.541694,
+                "emoji": "🇨🇭"},
+              {"name": "London",
+                "lat": 51.507351,
+                "lng": -0.127758,
+                "emoji": "🇬🇧"},
+            ],
           };
           return returnData;
         });
