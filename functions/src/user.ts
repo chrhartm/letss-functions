@@ -245,6 +245,7 @@ exports.getConfig = functions.region("europe-west1")
             "activityAddPromptEveryTenX": 2,
             "minChatsForReview": 3,
             "searchDays": searchDays,
+            // Deprecated - Use Firebase Config instead for easier l10n
             "supportPitch": "Enjoying our app? Buy us a coffee and" +
               " get a supporter badge on your profile.",
             "supportRequestInterval": 360,
