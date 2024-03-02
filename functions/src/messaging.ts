@@ -53,10 +53,14 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         const lastEmail = receiverU.lastEmail==null?null:
                             receiverU.lastEmail.seconds;
                         const lastOnline = receiverU.lastOnline.seconds;
+                        let bodyString = " wants to join";
+                        if (receiverU.locale == "de") {
+                          bodyString = " möchte mitmachen";
+                        }
                         const message = {
                           notification: {
                             title: activityData.name,
-                            body: senderP.name + " wants to join",
+                            body: senderP.name + bodyString,
                           },
                           data: {
                             link: "https://letss.app/myactivity/" +
@@ -314,9 +318,13 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                                 "Couldn't find user.");
                           }
                           // Send message
+                          let titleString = " posted a new idea";
+                          if (receiverU.locale == "de") {
+                            titleString = " hat eine neue Idee gepostet";
+                          }
                           const message = {
                             notification: {
-                              title: senderP.name + " posted a new idea",
+                              title: senderP.name + titleString,
                               body: activityData.name,
                             },
                             data: {
@@ -374,11 +382,16 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                                   "Couldn't find user.");
                             }
                             // Send message
+                            let bodyString = " is new to Letss. " +
+                            "Check out their idea and follow them!";
+                            if (receiverU.locale == "de") {
+                              bodyString = " ist neu bei Letss. " +
+                              "Mache bei der ersten Idee mit!";
+                            }
                             const message = {
                               notification: {
                                 title: activityData.name,
-                                body: senderP.name + " is new to Letss. " +
-                                "Check out their idea and follow them!",
+                                body: senderP.name + bodyString,
                               },
                               data: {
                                 link: "https://letss.app/activity/" + snap.id,
@@ -450,11 +463,20 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
                         "Couldn't find user.");
                   }
                   // Send message
+                  let titleString = " started following you";
+                  if (personU.locale == "de") {
+                    titleString = " folgt dir jetzt";
+                  }
+                  let bodyString = "Follow them to get notified" +
+                  " when they plan something";
+                  if (personU.locale == "de") {
+                    bodyString = "Folge zurück, um bei neuen Ideen" +
+                    " benachrichtigt zu werden";
+                  }
                   const message = {
                     notification: {
-                      title: followerP.name + " started following you",
-                      body: "Follow them to get notified" +
-                        " when they plan something",
+                      title: followerP.name + titleString,
+                      body: bodyString,
                     },
                     data: {
                       link: "https://letss.app/profile/person/" + follower,
