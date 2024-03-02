@@ -124,6 +124,10 @@ export async function addToEmailList(
 ) {
   sendGridClient.setApiKey(functions.config().sendgrid.key);
   console.log(language);
+  // replace empty language by english
+  if (language === "" || language === undefined) {
+    language = "en";
+  }
   const mailData = {
     "contacts": [
       {
