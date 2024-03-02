@@ -454,24 +454,20 @@ async function sendEmailOnJoin(change:
                     "Email not found.");
               }
               // Send email
-              return utils.sendEmail(
-                  "d-d71b1d7a1c124966ad24a08580066d90",
-                  "Letss",
-                  "noreply@letss.app",
+              return utils.addToEmailList(
+                  personData.name as string,
                   email,
-                  18546,
-                  {name: personData.name as string,
-                    count: count as number,
-                    locality: after.location["locality"] as string,
-                    link: "https://letss.page.link/myactivities",
-                  }).then((response) => console.log(
-                  "Successfully sent email:", response)
+                  after.location["locality"] as string,
+                  count as number,
+                  personData.locale as string,
+              ).then((response) => console.log(
+                  "Successfully added user to list:", response)
               );
             })
             .catch(function(error) {
-              console.log("Error sending email: ", error);
+              console.log("Error adding user to list: ", error);
               throw new functions.https.HttpsError("unknown",
-                  "Error sending email.");
+                  "Error adding user to list.");
             });
       });
 }

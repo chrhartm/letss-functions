@@ -1,4 +1,5 @@
-import sendGridClient = require("@sendgrid/mail");
+import sendGridMail = require("@sendgrid/mail");
+import sendGridClient = require("@sendgrid/client");
 import functions = require("firebase-functions");
 
 /**
@@ -88,7 +89,7 @@ export async function sendEmail(templateId: string,
     unsubscribeId: number,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any) {
-  sendGridClient.setApiKey(functions.config().sendgrid.key);
+  sendGridMail.setApiKey(functions.config().sendgrid.key);
 
   const mailData = {
     to: toAddress,
@@ -102,5 +103,48 @@ export async function sendEmail(templateId: string,
     templateId: templateId,
     dynamic_template_data: data,
   };
-  return sendGridClient.send(mailData);
+  return sendGridMail.send(mailData);
+}
+
+/**
+   * Send an email
+   * @param {string} name - name of user
+   * @param {string} address - user email
+   * @param {string} locality - user locality
+   * @param {string} count - user count in locality
+   * @param {string} language - user language
+   * @return {function} - Some function
+   */
+export async function addToEmailList(
+    name: string,
+    address: string,
+    locality: string,
+    count: number,
+    language: string,
+) {
+  sendGridClient.setApiKey(functions.config().sendgrid.key);
+
+  const mailData = [
+    {
+      email: address,
+      first_name: name,
+      locality: locality,
+      count: count,
+      language: language,
+    },
+  ];
+  const request = {
+    method: "POST" as const,
+    url: "/v3/contactdb/recipients",
+    body: mailData,
+  };
+  // TODO future this is rate limited to 3 per second
+  return sendGridClient.request(request).then(([response, body]) => {
+    console.log(response.statusCode);
+    console.log(response.body);
+    console.log(body.toString());
+  })
+      .catch((error) => {
+        console.error(error);
+      });
 }

@@ -101,9 +101,15 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                           "not-found",
                                           "Couldn't find user email.");
                                     }
+                                    let template =
+                                      "d-93478b18f7ee4935b554dea49749663e";
+                                    if (receiverU.locale == "de") {
+                                      template =
+                                      "d-b1264e8f012045d69eb72ee50400d01c";
+                                    }
                                     // Send email
                                     return utils.sendEmail(
-                                        "d-93478b18f7ee4935b554dea49749663e",
+                                        template,
                                         "Letss",
                                         "noreply@letss.app",
                                         userEmail,
