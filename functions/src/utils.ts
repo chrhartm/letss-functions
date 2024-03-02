@@ -123,19 +123,23 @@ export async function addToEmailList(
     language: string,
 ) {
   sendGridClient.setApiKey(functions.config().sendgrid.key);
-
-  const mailData = [
-    {
-      email: address,
-      first_name: name,
-      locality: locality,
-      count: count,
-      language: language,
-    },
-  ];
+  console.log(language);
+  const mailData = {
+    "contacts": [
+      {
+        "email": address,
+        "first_name": name,
+        "custom_fields": {
+          "locality": locality,
+          "count": count,
+          "language": language,
+        },
+      },
+    ],
+  };
   const request = {
-    method: "POST" as const,
-    url: "/v3/contactdb/recipients",
+    method: "PUT" as const,
+    url: "/v3/marketing/contacts",
     body: mailData,
   };
   // TODO future this is rate limited to 3 per second
