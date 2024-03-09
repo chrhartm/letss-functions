@@ -2,6 +2,104 @@ import functions = require("firebase-functions");
 import admin = require("firebase-admin");
 import utils = require("./utils");
 
+// Push a notification every Friday with a preselected activity
+exports.pushScheduled = functions.region("europe-west1").pubsub
+    .schedule("0 12 * * 5")
+    .timeZone("Europe/Berlin")
+    .onRun(() => {
+      const db = admin.firestore();
+      // Get notification data from database
+      return db.collection("scheduled-notifications")
+          .where("status", "==", "scheduled")
+          .where("timestamp", "<=",
+              admin.firestore.Timestamp.now())
+          .get()
+          .then((querySnapshot) => {
+            const promises: Promise<void>[] = [];
+            querySnapshot.forEach((document) => {
+              const notification = document.data();
+              // Get user data
+              promises.push(db.collection("users").doc(notification.user)
+                  .get().then((userDoc) => {
+                    if (userDoc.exists == false) {
+                      console.log("Couldn't find user: " + notification.user);
+                      return;
+                    }
+                    const user = userDoc.data();
+                    if (user == null) {
+                      console.log("Couldn't find user II: " +
+                      notification.user);
+                      return;
+                    }
+                    // Get template data
+                    return db.collection("templates")
+                        .doc(notification.template)
+                        .get().then((templateDoc) => {
+                          if (templateDoc.exists == false) {
+                            console.log("Couldn't find template: " +
+                            notification.template);
+                            return;
+                          }
+                          const template = templateDoc.data();
+                          if (template == null) {
+                            console.log("Couldn't find template II: " +
+                             notification.template);
+                            return;
+                          }
+                          // Send push notificaiton
+                          // title and body localization
+                          let body = template.name;
+                          let title =
+                          "TGIF! Here's an idea for your weekend";
+                          if (template.language == "de") {
+                            body = template.title;
+                            title =
+                            "Endlich Freitag! Unsere Idee " +
+                            "für dein Wochenende";
+                          }
+                          const message = {
+                            notification: {
+                              title: title,
+                              body: body,
+                            },
+                            data: {
+                              link: "https://letss.app/myactivity/from-template/" +
+                              notification.template,
+                            },
+                            token: user.token.token,
+                            apns: {
+                              payload: {
+                                aps: {
+                                  "content-available": 1,
+                                },
+                              },
+                            },
+                          };
+                          console.log("Sending message to " +
+                          notification.user + ": " + message);
+                          return admin.messaging()
+                              .send(message)
+                              .then((response) => {
+                                console.log("Successfully sent message:",
+                                    response);
+                                // Update notification status
+                                return db.collection("scheduled-notifications")
+                                    .doc(document.id)
+                                    .update({status: "sent"})
+                                    .then((response) => {
+                                      console.log("Updated notification",
+                                          response);
+                                    });
+                              });
+                        }
+                        );
+                  }
+                  ));
+            });
+            return Promise.all(promises);
+          });
+    });
+
 exports.pushOnLike = functions.region("europe-west1").firestore
     .document("/activities/{activityId}/likes/{likeId}")
     .onCreate((snap, context) => {
