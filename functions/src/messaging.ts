@@ -278,8 +278,9 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
     .document("/activities/{activityId}")
     .onCreate((snap, ) => {
       const activityData = snap.data();
-      const followerIds: string[] = [];
+      const notifiedUsers: string[] = [];
       const minMessages = 10;
+      const maxMessages = 100;
       // Get data on sender
       return admin.firestore().collection("persons").doc(activityData.user)
           .get().then((document) => {
@@ -298,17 +299,107 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
             // Send update to all followers of sender
             messagePromises.push(admin.firestore().collection("followers")
                 .doc(activityData.user).collection("followers")
+                .limit(maxMessages)
                 .get().then((querySnapshot) => {
                   const promises: Promise<void>[] = [];
                   querySnapshot.forEach((document) => {
                     const follower = document.id;
-                    followerIds.push(follower);
-                    // Get data on receiver
-                    promises.push(admin.firestore().collection("users")
+                    notifiedUsers.push(follower);
+                    // check if receiver user has same location as activity
+                    promises.push(admin.firestore().collection("persons")
                         .doc(follower).get().then((doc) => {
                           if (doc.exists == false) {
-                            console.log("Couldn't find user: " +
+                            console.log("Couldn't find person: " +
                           follower);
+                            throw new functions.https.HttpsError("not-found",
+                                "Couldn't find person.");
+                          }
+                          const receiverP = doc.data();
+                          if (receiverP == null) {
+                            throw new functions.https.HttpsError("not-found",
+                                "Couldn't find person.");
+                          }
+                          if (receiverP.location.locality ==
+                            activityData.location.locality) {
+                            // Get data on receiver
+                            return admin.firestore().collection("users")
+                                .doc(follower).get().then((doc) => {
+                                  if (doc.exists == false) {
+                                    console.log("Couldn't find user: " +
+                            follower);
+                                    throw new functions.https.HttpsError(
+                                        "not-found", "Couldn't find user.");
+                                  }
+                                  const receiverU = doc.data();
+                                  if (receiverU == null) {
+                                    throw new functions.https.HttpsError(
+                                        "not-found", "Couldn't find user.");
+                                  }
+                                  // Send message
+                                  let titleString = " posted a new idea";
+                                  if (receiverU.locale == "de") {
+                                    titleString =
+                                    " hat eine neue Idee gepostet";
+                                  }
+                                  const message = {
+                                    notification: {
+                                      title: senderP.name + titleString,
+                                      body: activityData.name,
+                                    },
+                                    data: {
+                                      link: "https://letss.app/activity/" +
+                                      snap.id,
+                                    },
+                                    token: receiverU.token.token,
+                                    apns: {
+                                      payload: {
+                                        aps: {
+                                          "content-available": 1,
+                                        },
+                                      },
+                                    },
+                                  };
+                                  console.log("Sending activity to " +
+                          follower +
+                          ": " + message);
+
+                                  return admin.messaging()
+                                      .send(message)
+                                      .then((response) =>
+                                        console.log(response));
+                                });
+                          } else {
+                            // Ignore users with different location
+                            return;
+                          }
+                        }));
+                  });
+                  return Promise.all(promises);
+                }));
+            // Send update to all users interested in activity
+            // Start by getting all users with same location as
+            // activity that have this interest
+            messagePromises.push(admin.firestore().collection("persons")
+                .where("location.locality", "==",
+                    activityData.location.locality)
+                .where("interests", "array-contains-any",
+                    activityData.categories)
+                .limit(maxMessages - notifiedUsers.length)
+                .get().then((querySnapshot) => {
+                  const promises: Promise<void>[] = [];
+                  querySnapshot.forEach((document) => {
+                    const user = document.id;
+                    // Ignore users already notified
+                    if (notifiedUsers.includes(user)) {
+                      return;
+                    }
+                    notifiedUsers.push(user);
+                    // Get data on receiver
+                    promises.push(admin.firestore().collection("users")
+                        .doc(user).get().then((doc) => {
+                          if (doc.exists == false) {
+                            console.log("Couldn't find user: " +
+                        user);
                             throw new functions.https.HttpsError("not-found",
                                 "Couldn't find user.");
                           }
@@ -318,14 +409,15 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                                 "Couldn't find user.");
                           }
                           // Send message
-                          let titleString = " posted a new idea";
+                          let bodyString =
+                          " posted an idea that matches your interests";
                           if (receiverU.locale == "de") {
-                            titleString = " hat eine neue Idee gepostet";
+                            bodyString = "'s Idee passt zu deinen Interessen";
                           }
                           const message = {
                             notification: {
-                              title: senderP.name + titleString,
-                              body: activityData.name,
+                              title: activityData.name,
+                              body: senderP.name + bodyString,
                             },
                             data: {
                               link: "https://letss.app/activity/" + snap.id,
@@ -340,8 +432,8 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                             },
                           };
                           console.log("Sending activity to " +
-                        follower +
-                        ": " + message);
+                      user +
+                      ": " + message);
 
                           return admin.messaging()
                               .send(message)
@@ -350,11 +442,12 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                   });
                   return Promise.all(promises);
                 }));
-            /* If sender has less than 10 followers,
-          send to random users that have the same location
-          as the activity
-          */
-            if (followerIds.length < minMessages) {
+
+            /* If sent to less than 10 users,
+            send to random users that have the same location
+            as the activity
+            */
+            if (notifiedUsers.length < minMessages) {
               messagePromises.push(admin.firestore().collection("persons")
                   .where("location.locality", "==",
                       activityData.location.locality)
@@ -364,7 +457,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                     querySnapshot.forEach((document) => {
                       const user = document.id;
                       // Ignore followers
-                      if (followerIds.includes(user)) {
+                      if (notifiedUsers.includes(user)) {
                         return;
                       }
                       // Get data on receiver
