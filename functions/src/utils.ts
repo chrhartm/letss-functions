@@ -156,3 +156,43 @@ export async function addToEmailList(
         console.error(error);
       });
 }
+
+// Delete a contact from the email list
+/**
+   * Send an email
+   * @param {string} address - user email
+   * @return {function} - Some function
+   */
+export async function removeFromEmailList(address: string) {
+  sendGridClient.setApiKey(functions.config().sendgrid.key);
+  // First get the contact ID
+  const request = {
+    method: "POST" as const,
+    url: "/v3/marketing/contacts/search",
+    body: {
+      query: "email LIKE '" + address + "'", // eslint-disable-line
+    },
+  };
+  return sendGridClient.request(request).then(([, body]) => {
+    const contactId = JSON.parse(body.toString()).result[0].id;
+    console.log(contactId);
+    const deleteRequest = {
+      method: "DELETE" as const,
+      url: "/v3/marketing/contacts",
+      qs: {
+        ids: contactId,
+      },
+    };
+    return sendGridClient.request(deleteRequest).then(([response, body]) => {
+      console.log(response.statusCode);
+      console.log(response.body);
+      console.log(body.toString());
+    })
+        .catch((error) => {
+          console.error(error);
+        });
+  })
+      .catch((error) => {
+        console.error(error);
+      });
+}

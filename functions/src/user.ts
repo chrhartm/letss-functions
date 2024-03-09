@@ -542,6 +542,21 @@ async function deleteUser(userId: string) {
             }
           });
 
+  // Remove from sendGrid by first getting email from auth
+  await admin.auth().getUser(userId)
+      .then((user) => {
+        return utils.removeFromEmailList(user.email as string)
+            .then(() => console.log("Removed user from list"))
+            .catch(function(err) {
+              console.log("Error removing user from list: " + err);
+              error = true;
+            });
+      })
+      .catch(function(err) {
+        console.log("Error getting user: " + err);
+        error = true;
+      });
+
   // Delete blocks by user
   // ignore deletion of where user was blocked for now, low risk
   await db
@@ -551,6 +566,28 @@ async function deleteUser(userId: string) {
       .catch(function(err) {
         console.log("Error in blocks deletion " + err);
       });
+
+  // Delete scheduled notifications
+  await db
+      .collection("scheduled-notifications")
+      .where("user", "==", userId)
+      .get()
+      .then(
+          (query) => {
+            return Promise.all(query.docs.map(
+                async (doc) => {
+                  await db.collection("scheduled-notifications")
+                      .doc(doc.id)
+                      .delete().then(() => console.log(
+                          "deleted scheduled notification: " + doc.id))
+                      .catch(function(err) {
+                        console.log(
+                            "failed to delete scheduled notification: " +
+                            doc.id + " " + err);
+                        error = true;
+                      });
+                }));
+          });
 
   // Delete likes of own activities and activities
   await db
@@ -780,10 +817,32 @@ async function deleteUser(userId: string) {
                     .collection("messages")
                     .add(deletemessage);
               } else {
-                await db.collection("chats")
-                    .doc(doc.id)
-                    .update({"users":
+                if (doc.data().activityData.user == userId) {
+                  const users = doc.data().users;
+                  const index = users.indexOf(userId, 0);
+                  const deletemessage = {
+                    "message": "This user deleted their account",
+                    "user": "DELETED",
+                    "timestamp": firestore.Timestamp.now()};
+                  users[index] = "DELETED";
+                  const a = doc.data().activityData;
+                  a.user = "DELETED";
+                  a.uid = "DELETED";
+                  await db.collection("chats")
+                      .doc(doc.id)
+                      .update({"status": doc.data().status, "read": [],
+                        "users": users, "lastMessage": deletemessage,
+                        "activityData": a});
+                  await db.collection("chats")
+                      .doc(doc.id)
+                      .collection("messages")
+                      .add(deletemessage);
+                } else {
+                  await db.collection("chats")
+                      .doc(doc.id)
+                      .update({"users":
                       firestore.FieldValue.arrayRemove(userId)});
+                }
               }
             }));
           }
