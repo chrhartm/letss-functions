@@ -166,15 +166,23 @@ export async function addToEmailList(
 export async function removeFromEmailList(address: string) {
   sendGridClient.setApiKey(functions.config().sendgrid.key);
   // First get the contact ID
+  console.log(address);
   const request = {
     method: "POST" as const,
     url: "/v3/marketing/contacts/search",
     body: {
-      query: "email LIKE '" + address + "'", // eslint-disable-line
+      query: "email LIKE lower('" + address + "')", // eslint-disable-line
     },
   };
-  return sendGridClient.request(request).then(([, body]) => {
-    const contactId = JSON.parse(body.toString()).result[0].id;
+  return sendGridClient.request(request).then(([response]) => {
+    console.log(response.statusCode);
+    console.log(response.body as any); // eslint-disable-line
+    console.log(response.body.toString());
+    const responseJson = response.body as any; // eslint-disable-line
+    if (responseJson.result.length === 0) {
+      return;
+    }
+    const contactId = responseJson.result[0].id;
     console.log(contactId);
     const deleteRequest = {
       method: "DELETE" as const,
