@@ -379,6 +379,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
       const notifiedUsers: string[] = [];
       const minMessages = 10;
       const maxMessages = 100;
+      notifiedUsers.push(activityData.user); // Don't notify sender
       // Get data on sender
       return admin.firestore().collection("persons").doc(activityData.user)
           .get().then((document) => {
@@ -393,9 +394,8 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
               throw new functions.https.HttpsError("not-found",
                   "Couldn't find person.");
             }
-            const messagePromises: Promise<void | void[]>[] = [];
             // Send update to all followers of sender
-            messagePromises.push(admin.firestore().collection("followers")
+            const followerPromise = admin.firestore().collection("followers")
                 .doc(activityData.user).collection("followers")
                 .limit(maxMessages)
                 .get().then((querySnapshot) => {
@@ -473,80 +473,83 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                         }));
                   });
                   return Promise.all(promises);
-                }));
+                });
             // Send update to all users interested in activity
             // Start by getting all users with same location as
             // activity that have this interest
-            messagePromises.push(admin.firestore().collection("persons")
-                .where("location.locality", "==",
-                    activityData.location.locality)
-                .where("interests", "array-contains-any",
-                    activityData.categories)
-                .limit(maxMessages - notifiedUsers.length)
-                .get().then((querySnapshot) => {
-                  const promises: Promise<void>[] = [];
-                  querySnapshot.forEach((document) => {
-                    const user = document.id;
-                    // Ignore users already notified
-                    if (notifiedUsers.includes(user)) {
-                      return;
-                    }
-                    notifiedUsers.push(user);
-                    // Get data on receiver
-                    promises.push(admin.firestore().collection("users")
-                        .doc(user).get().then((doc) => {
-                          if (doc.exists == false) {
-                            console.log("Couldn't find user: " +
+            const locationPromise = Promise.resolve() as Promise<void | void[]>;
+            if (activityData.categories.length > 0) {
+              admin.firestore().collection("persons")
+                  .where("location.locality", "==",
+                      activityData.location.locality)
+                  .where("interests", "array-contains-any",
+                    activityData.categories as string[])
+                  .limit(maxMessages - notifiedUsers.length)
+                  .get().then((querySnapshot) => {
+                    const promises: Promise<void>[] = [];
+                    querySnapshot.forEach((document) => {
+                      const user = document.id;
+                      // Ignore users already notified
+                      if (notifiedUsers.includes(user)) {
+                        return;
+                      }
+                      notifiedUsers.push(user);
+                      // Get data on receiver
+                      promises.push(admin.firestore().collection("users")
+                          .doc(user).get().then((doc) => {
+                            if (doc.exists == false) {
+                              console.log("Couldn't find user: " +
                         user);
-                            throw new functions.https.HttpsError("not-found",
-                                "Couldn't find user.");
-                          }
-                          const receiverU = doc.data();
-                          if (receiverU == null) {
-                            throw new functions.https.HttpsError("not-found",
-                                "Couldn't find user.");
-                          }
-                          // Send message
-                          let bodyString =
+                              throw new functions.https.HttpsError("not-found",
+                                  "Couldn't find user.");
+                            }
+                            const receiverU = doc.data();
+                            if (receiverU == null) {
+                              throw new functions.https.HttpsError("not-found",
+                                  "Couldn't find user.");
+                            }
+                            // Send message
+                            let bodyString =
                           " posted an idea that matches your interests";
-                          if (receiverU.locale == "de") {
-                            bodyString = "'s Idee passt zu deinen Interessen";
-                          }
-                          const message = {
-                            notification: {
-                              title: activityData.name,
-                              body: senderP.name + bodyString,
-                            },
-                            data: {
-                              link: "https://letss.app/activity/" + snap.id,
-                            },
-                            token: receiverU.token.token,
-                            apns: {
-                              payload: {
-                                aps: {
-                                  "content-available": 1,
+                            if (receiverU.locale == "de") {
+                              bodyString = "'s Idee passt zu deinen Interessen";
+                            }
+                            const message = {
+                              notification: {
+                                title: activityData.name,
+                                body: senderP.name + bodyString,
+                              },
+                              data: {
+                                link: "https://letss.app/activity/" + snap.id,
+                              },
+                              token: receiverU.token.token,
+                              apns: {
+                                payload: {
+                                  aps: {
+                                    "content-available": 1,
+                                  },
                                 },
                               },
-                            },
-                          };
-                          console.log("Sending activity to " +
+                            };
+                            console.log("Sending activity to " +
                       user +
                       ": " + message);
 
-                          return admin.messaging()
-                              .send(message)
-                              .then((response) => console.log(response));
-                        }));
+                            return admin.messaging()
+                                .send(message)
+                                .then((response) => console.log(response));
+                          }));
+                    });
+                    return Promise.all(promises);
                   });
-                  return Promise.all(promises);
-                }));
-
+            }
             /* If sent to less than 10 users,
             send to random users that have the same location
             as the activity
             */
+            let newpersonPromise = Promise.resolve() as Promise<void | void[]>;
             if (notifiedUsers.length < minMessages) {
-              messagePromises.push(admin.firestore().collection("persons")
+              newpersonPromise = admin.firestore().collection("persons")
                   .where("location.locality", "==",
                       activityData.location.locality)
                   .limit(minMessages)
@@ -574,7 +577,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                             }
                             // Send message
                             let bodyString = " is new to Letss. " +
-                            "Check out their idea and follow them!";
+                            "Say hi and join their idea!";
                             if (receiverU.locale == "de") {
                               bodyString = " ist neu bei Letss. " +
                               "Mache bei der ersten Idee mit!";
@@ -606,9 +609,13 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                           }));
                     });
                     return Promise.all(promises);
-                  }));
+                  });
             }
-            return Promise.all(messagePromises);
+            return followerPromise.then(() => {
+              return locationPromise.then(() => {
+                return newpersonPromise;
+              });
+            });
           });
     });
 
