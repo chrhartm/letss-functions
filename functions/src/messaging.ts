@@ -145,12 +145,14 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                           throw new functions.https.HttpsError("not-found",
                               "Couldn't find user.");
                         }
+                        /*
                         const now = admin.firestore.Timestamp.now().seconds;
                         const limitUnopened = now - 60*60*24*3;
                         const limitOpened = now - 60*60*24;
                         const lastEmail = receiverU.lastEmail==null?null:
                             receiverU.lastEmail.seconds;
                         const lastOnline = receiverU.lastOnline.seconds;
+                        */
                         let bodyString = " wants to join";
                         if (receiverU.locale == "de") {
                           bodyString = " möchte mitmachen";
@@ -186,6 +188,9 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                               // Send if not sent before or
                               // last was sent > 3 days ago or
                               // last was sent > 1 day ago and opened app
+                              // ## Don't do this because it just feels
+                              // unreliable if emails only come sometimes
+                              /*
                               if (lastEmail != null &&
                                 (((lastOnline > lastEmail) &&
                                   (lastEmail > limitOpened)) ||
@@ -194,6 +199,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                 console.log("Not sending email (timing)");
                                 return null;
                               }
+                              */
                               // Get user email
                               return admin.auth().getUser(activityData.user)
                                   .then((userRecord) => {
@@ -337,6 +343,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
               }
             }
             return Promise.all(receiverPromises).then((receivers) => {
+              const sendPromises = [];
               for (const receiver of receivers) {
                 if (receiver != null && receiver.token != null) {
                   const message = {
@@ -360,12 +367,14 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                   console.log("Sending message to " +
                     receiver.name +
                     ": " + message);
-                  return admin.messaging()
-                      .send(message)
-                      .then((response) => console.log(response));
+                  sendPromises.push(
+                      admin.messaging()
+                          .send(message)
+                          .then((response) => console.log(response))
+                  );
                 }
               }
-              return;
+              return Promise.all(sendPromises);
             }
             );
           });
@@ -377,7 +386,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
     .onCreate((snap, ) => {
       const activityData = snap.data();
       const notifiedUsers: string[] = [];
-      const minMessages = 10;
+      const minMessages = 30;
       const maxMessages = 100;
       notifiedUsers.push(activityData.user); // Don't notify sender
       // Get data on sender
@@ -576,11 +585,11 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                                   "Couldn't find user.");
                             }
                             // Send message
-                            let bodyString = " is new to Letss. " +
-                            "Say hi and join their idea!";
+                            let bodyString = " posted a new idea. " +
+                            "Check it out!";
                             if (receiverU.locale == "de") {
-                              bodyString = " ist neu bei Letss. " +
-                              "Mache bei der ersten Idee mit!";
+                              bodyString = " hat eine neue Idee. " +
+                              "Mach mit!";
                             }
                             const message = {
                               notification: {
