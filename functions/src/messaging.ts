@@ -428,6 +428,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                     const follower = document.id;
                     notifiedUsers.push(follower);
                     // check if receiver user has same location as activity
+                    console.log("Follower: " + follower);
                     promises.push(admin.firestore().collection("persons")
                         .doc(follower).get().then((doc) => {
                           if (doc.exists == false) {
@@ -456,6 +457,10 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                                   if (receiverU == null) {
                                     throw new functions.https.HttpsError(
                                         "not-found", "Couldn't find user.");
+                                  }
+                                  if (receiverU.token == null) {
+                                    console.log("No token for " + follower);
+                                    return;
                                   }
                                   // Send message
                                   let titleString = " posted a new idea";
@@ -490,9 +495,12 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                                       .send(message)
                                       .then((response) =>
                                         console.log(response));
+                                }).catch((err) => {
+                                  console.log("Error in sending message:");
+                                  console.log(err);
                                 });
                           } else {
-                            // Ignore users with different location
+                            // Ignore followers with different location
                             return;
                           }
                         }));
@@ -502,9 +510,11 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
             // Send update to all users interested in activity
             // Start by getting all users with same location as
             // activity that have this interest
-            const locationPromise = Promise.resolve() as Promise<void | void[]>;
+            console.log("## Message all with shared interests");
+            console.log("Interests: " + activityData.categories);
+            let locationPromise = Promise.resolve() as Promise<void | void[]>;
             if (activityData.categories.length > 0) {
-              admin.firestore().collection("persons")
+              locationPromise = admin.firestore().collection("persons")
                   .where("location.locality", "==",
                       activityData.location.locality)
                   .where("interests", "array-contains-any",
@@ -519,6 +529,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                         return;
                       }
                       notifiedUsers.push(user);
+                      console.log("InterestUser: " + user);
                       // Get data on receiver
                       promises.push(admin.firestore().collection("users")
                           .doc(user).get().then((doc) => {
@@ -532,6 +543,10 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                             if (receiverU == null) {
                               throw new functions.https.HttpsError("not-found",
                                   "Couldn't find user.");
+                            }
+                            if (receiverU.token == null) {
+                              console.log("No token for " + user);
+                              return;
                             }
                             // Send message
                             let bodyString =
@@ -587,6 +602,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                       if (notifiedUsers.includes(user)) {
                         return;
                       }
+                      console.log("RandomUser: " + user);
                       // Get data on receiver
                       promises.push(admin.firestore().collection("users")
                           .doc(user).get().then((doc) => {
@@ -608,6 +624,11 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                             receiverU.locale == "de") {
                               bodyString = " hat eine neue Idee. " +
                               "Mach mit!";
+                            }
+                            // if no token, return
+                            if (receiverU.token == null) {
+                              console.log("No token for " + user);
+                              return;
                             }
                             const message = {
                               notification: {
@@ -638,8 +659,11 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                     return Promise.all(promises);
                   });
             }
+            console.log("## Message all followers");
             return followerPromise.then(() => {
+              console.log("## Message all with shared interests");
               return locationPromise.then(() => {
+                console.log("## Message random users");
                 return newpersonPromise;
               });
             });
