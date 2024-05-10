@@ -255,6 +255,8 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
       const beforeC = change.before.data();
       const afterC = change.after.data();
 
+      console.log("ChatId: " + context.params.chatId);
+
       // If a user moved to usersLeft, then update activity
       if (beforeC.activityData != null) {
         const activityUid = beforeC.activityData.uid;
@@ -302,7 +304,8 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
       }
 
       // Make sure new message before sending notifications
-      if (beforeC.lastMessage.timestamp == afterC.lastMessage.timestamp) {
+      if ((beforeC.lastMessage.timestamp == afterC.lastMessage.timestamp) &&
+        (beforeC.lastMessage.message == afterC.lastMessage.message)) {
         console.log("Message didn't change.");
         return null;
       }
@@ -338,6 +341,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                         console.log("Couldn't find user II: " + user);
                         return;
                       }
+                      console.log("Got " + user);
                       return userData;
                     }));
               }
@@ -364,9 +368,11 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                       },
                     },
                   };
-                  console.log("Sending message to " +
-                    receiver.name +
-                    ": " + message);
+                  console.log("Sending message: " +
+                    message.notification.title,
+                  " -  " + message.notification.body);
+                  console.log("Using token: " +
+                    receiver.token.token);
                   sendPromises.push(
                       admin.messaging()
                           .send(message)
