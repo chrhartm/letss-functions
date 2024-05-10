@@ -104,6 +104,9 @@ exports.pushOnLike = functions.region("europe-west1").firestore
     .document("/activities/{activityId}/likes/{likeId}")
     .onCreate((snap, context) => {
       const db = admin.firestore();
+      console.log("ActivityId: " + context.params.activityId);
+      console.log("LikeId: " + context.params.likeId);
+      console.log("PersonId: " + snap.id);
       // Get data on sender
       return db.collection("persons").doc(snap.id)
           .get().then((senderDoc) => {
@@ -132,6 +135,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         "Couldn't find activity");
                   }
                   // Get data on receiver
+                  console.log("Activity user: " + activityData.user);
                   return db.collection("users").doc(activityData.user)
                       .get().then((receiverDoc) => {
                         if (receiverDoc.exists == false) {
@@ -177,7 +181,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         };
                         console.log("Sending message to " +
                             activityData.user +
-                            ": " + message);
+                            ": " + message.notification.body);
                         // Send push notification
                         return admin.messaging()
                             .send(message)
@@ -211,10 +215,12 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                     }
                                     let template =
                                       "d-93478b18f7ee4935b554dea49749663e";
-                                    if (receiverU.locale == "de") {
+                                    if ("locale" in receiverU &&
+                                      receiverU.locale == "de") {
                                       template =
                                       "d-b1264e8f012045d69eb72ee50400d01c";
                                     }
+                                    console.log("Sending email");
                                     // Send email
                                     return utils.sendEmail(
                                         template,
