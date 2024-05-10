@@ -297,6 +297,7 @@ exports.updateToken = functions.region("europe-west1")
           }
 
           console.log("userid: " + userId);
+          console.log("token: " + token);
 
           try {
             await db.collection("users")
@@ -335,6 +336,7 @@ exports.updateLocale = functions.region("europe-west1")
           }
 
           console.log("userid: " + userId);
+          console.log("locale: " + locale);
 
           try {
             await db.collection("users")
@@ -352,6 +354,9 @@ exports.validatePerson = functions.region("europe-west1").firestore
       const db = admin.firestore();
       const uid = change.after.id;
       const afterP = change.after.data();
+
+      console.log("Validating person: " + uid);
+
       return sendEmailOnJoin(change).then(() => {
         return db.collection("users").doc(uid)
             .get().then((document) => {
@@ -409,6 +414,8 @@ async function sendEmailOnJoin(change:
 
   const db = admin.firestore();
   let count = 1;
+
+  console.log("Sending email for: " + uid);
 
   const counterPath = db.collection("stats")
       .doc(after.location["isoCountryCode"])
@@ -483,6 +490,9 @@ exports.initializeUser = functions.auth
         "status": "ACTIVE",
         "subscription":
             {"productId": "none", "timestamp": firestore.Timestamp.now()}};
+
+      console.log("Initializing user: " + user.uid);
+
       return db.collection("users")
           .doc(user.uid)
           .set(payload, {merge: true})
@@ -512,6 +522,7 @@ exports.deleteUser = functions.region("europe-west1")
             throw new functions.https.HttpsError("unauthenticated",
                 "Not authenticated");
           }
+          console.log("Deleting userid: " + userId);
           return deleteUser(userId);
         });
 
@@ -530,6 +541,7 @@ async function deleteUser(userId: string) {
   console.log("Deleting userid: " + userId);
 
   // Make sure user doesn't have any flags against them
+  console.log("Checking flags");
   await db
       .collection("flags")
       .where("flagged", "==", userId)
@@ -543,6 +555,7 @@ async function deleteUser(userId: string) {
           });
 
   // Remove from sendGrid by first getting email from auth
+  console.log("Removing from email list");
   await admin.auth().getUser(userId)
       .then((user) => {
         return utils.removeFromEmailList(user.email as string)
@@ -559,6 +572,7 @@ async function deleteUser(userId: string) {
 
   // Delete blocks by user
   // ignore deletion of where user was blocked for now, low risk
+  console.log("Deleting blocks");
   await db
       .collection("blocks")
       .doc(userId)
@@ -568,6 +582,7 @@ async function deleteUser(userId: string) {
       });
 
   // Delete scheduled notifications
+  console.log("Deleting scheduled notifications");
   await db
       .collection("scheduled-notifications")
       .where("user", "==", userId)
@@ -590,6 +605,7 @@ async function deleteUser(userId: string) {
           });
 
   // Delete likes of own activities and activities
+  console.log("Deleting likes on own activities");
   await db
       .collection("activities")
       .where("user", "==", userId)
@@ -629,6 +645,7 @@ async function deleteUser(userId: string) {
         error = true;
       });
   // delete likes of other"s activities and matches
+  console.log("Deleting likes on other's activities");
   await db
       .collection("matches")
       .where("user", "==", userId)
@@ -691,6 +708,7 @@ async function deleteUser(userId: string) {
           });
   // delete followers
   // first delete all cases where others follow me then my record of it
+  console.log("Deleting followers");
   await db
       .collection("followers")
       .doc(userId)
@@ -717,6 +735,7 @@ async function deleteUser(userId: string) {
                 }));
           });
   const followers = "followers/" + userId + "/followers";
+  console.log("Deleting followers");
   await utils.deleteCollection(db,
       followers, batchSize)
       .then(() => {
@@ -727,6 +746,7 @@ async function deleteUser(userId: string) {
         error = true;
       });
   // first delete all cases where following others, then following
+  console.log("Deleting following");
   await db
       .collection("followers")
       .doc(userId)
@@ -755,6 +775,7 @@ async function deleteUser(userId: string) {
 
 
   const following = "following/" + userId + "/following";
+  console.log("Deleting following");
   await utils.deleteCollection(db,
       following, batchSize)
       .then(() => {
@@ -764,6 +785,8 @@ async function deleteUser(userId: string) {
         console.log("Error in following " + err);
         error = true;
       });
+  // delete followers for user
+  console.log("Deleting followers for user: " + userId);
   await db
       .collection("followers")
       .doc(userId)
@@ -778,6 +801,7 @@ async function deleteUser(userId: string) {
       });
 
   // delete chat messages and anonymize chat
+  console.log("Deleting chat messages");
   await db
       .collection("chats")
       .where("users", "array-contains", userId)
@@ -853,6 +877,7 @@ async function deleteUser(userId: string) {
       });
 
   // delete chat messages and anonymize chat
+  console.log("Deleting chat messages on own leftChat");
   await db
       .collection("chats")
       .where("usersLeft", "array-contains", userId)
@@ -904,6 +929,7 @@ async function deleteUser(userId: string) {
         error = true;
       });
   // delete notifications
+  console.log("Deleting notifications");
   await db.collection("notifications")
       .doc(userId)
       .delete()
@@ -912,6 +938,7 @@ async function deleteUser(userId: string) {
         error = true;
       });
   // delete images
+  console.log("Deleting images");
   await defaultBucket.deleteFiles({prefix: "profilePics/" + userId})
       .then(() => console.log("deleted all files"))
       .catch(function(err) {
@@ -919,6 +946,7 @@ async function deleteUser(userId: string) {
         error = true;
       });
   // delete person
+  console.log("Deleting person");
   await db.collection("persons")
       .doc(userId)
       .delete()
@@ -927,6 +955,7 @@ async function deleteUser(userId: string) {
         error = true;
       });
   // delete user
+  console.log("Deleting user");
   await db.collection("users")
       .doc(userId)
       .delete()
@@ -935,6 +964,7 @@ async function deleteUser(userId: string) {
         error = true;
       });
   // delete user (auth)
+  console.log("Deleting user (auth)");
   admin.auth().deleteUser(userId)
       .catch(function(err) {
         console.log("Couldn't delete auth user: " + err);

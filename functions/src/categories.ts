@@ -8,6 +8,9 @@ exports.incrementCategoryPopularity = functions.region("europe-west1")
     .onCreate((snap, ) => {
       const db = admin.firestore();
       const activity = snap.data();
+
+      console.log("ActivityId: " + snap.id);
+
       if (activity.location.isoCountryCode == null) {
         console.log("No country code for activity: " + snap.id);
         throw new functions.https.HttpsError("not-found",

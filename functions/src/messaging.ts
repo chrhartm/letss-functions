@@ -18,6 +18,7 @@ exports.pushScheduled = functions.region("europe-west1").pubsub
             const promises: Promise<void>[] = [];
             querySnapshot.forEach((document) => {
               const notification = document.data();
+              console.log("User: " + notification.user);
               // Get user data
               promises.push(db.collection("users").doc(notification.user)
                   .get().then((userDoc) => {
@@ -263,6 +264,8 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
       const afterC = change.after.data();
 
       console.log("ChatId: " + context.params.chatId);
+      console.log("Before message: " + beforeC.lastMessage.message);
+      console.log("After message: " + afterC.lastMessage.message);
 
       // If a user moved to usersLeft, then update activity
       if (beforeC.activityData != null) {
@@ -676,6 +679,8 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
       const follower = snap.id;
       const personId = context.params.personId;
       const trigger = snap.data()["trigger"];
+      console.log("PersonId: " + personId);
+      console.log("FollowerId: " + follower);
       if (trigger != null) {
         console.log("Trigger: " + trigger);
         if (trigger != "FOLLOW") {
@@ -755,6 +760,7 @@ exports.alertOnFlag = functions.region("europe-west1").firestore
     .document("/flags/{flagId}")
     .onCreate((snap, ) => {
       const flag = snap.data();
+      console.log("FlagId: " + snap.id);
       // Get data on sender
       return utils.sendEmail(
           "d-789ed3810f334d018085cdc8d0fc959b",

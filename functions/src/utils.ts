@@ -14,6 +14,8 @@ export async function deleteCollection(db: FirebaseFirestore.Firestore,
   const collectionRef = db.collection(collectionPath);
   const query = collectionRef.orderBy("__name__").limit(batchSize);
 
+  console.log("Deleting collection: " + collectionPath);
+
   return new Promise((resolve, reject) => {
     deleteQueryBatch(db, query, resolve).catch(reject);
   });
@@ -89,6 +91,8 @@ export async function sendEmail(templateId: string,
     unsubscribeId: number,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     data: any) {
+  console.log("Sending email with template " + templateId);
+
   sendGridMail.setApiKey(functions.config().sendgrid.key);
 
   const mailData = {

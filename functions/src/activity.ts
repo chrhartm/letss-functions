@@ -43,7 +43,6 @@ exports.like = functions.region("europe-west1")
           console.log("matchId" + matchId);
           console.log("like: " + like.message);
 
-
           const userinfo = (await db.collection("users")
               .doc(userId).get()).data();
           if (userinfo == null) {
@@ -284,6 +283,7 @@ exports.resetCoins = functions.region("europe-west1")
             snapshot.forEach((doc) => {
               const coins = (doc.data().supporter == true)?
                   coinsSupporter:coinsFree;
+              console.log("Resetting coins for " + doc.id + " to " + coins);
               db.collection("users")
                   .doc(doc.id)
                   .update({"coins": coins});
@@ -329,6 +329,9 @@ exports.generateImage = functions.region("europe-west1")
           }
 
           console.log("userid: " + userId);
+          console.log("activityId: " + data.activityId);
+          console.log("activityName: " + data.activityName);
+          console.log("activityPersona: " + data.activityPersona);
 
           const fileName = data.activityId + ".png";
           const activityName = data.activityName;
@@ -359,6 +362,9 @@ exports.promotionImage = functions.region("europe-west1").https
       const color = req.body.color as string;
       const id = req.body.id as string;
       const filename = id + ".png";
+
+      console.log("activityName: " + activityName);
+      console.log("id: " + id);
 
       const url = await generateActivityImage(bucket, filename,
           activityName, persona, color);
