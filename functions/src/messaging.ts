@@ -158,7 +158,8 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         const lastOnline = receiverU.lastOnline.seconds;
                         */
                         let bodyString = " wants to join";
-                        if (receiverU.locale == "de") {
+                        if ("locale" in receiverU &&
+                        receiverU.locale == "de") {
                           bodyString = " möchte mitmachen";
                         }
                         const message = {
@@ -400,6 +401,8 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
       const notifiedUsers: string[] = [];
       const minMessages = 30;
       const maxMessages = 100;
+      console.log("ActivityId: " + snap.id);
+      console.log("Activity user: " + activityData.user);
       notifiedUsers.push(activityData.user); // Don't notify sender
       // Get data on sender
       return admin.firestore().collection("persons").doc(activityData.user)
@@ -456,7 +459,8 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                                   }
                                   // Send message
                                   let titleString = " posted a new idea";
-                                  if (receiverU.locale == "de") {
+                                  if ("locale" in receiverU &&
+                                  receiverU.locale == "de") {
                                     titleString =
                                     " hat eine neue Idee gepostet";
                                   }
@@ -532,7 +536,8 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                             // Send message
                             let bodyString =
                           " posted an idea that matches your interests";
-                            if (receiverU.locale == "de") {
+                            if ("locale" in receiverU &&
+                              receiverU.locale == "de") {
                               bodyString = "'s Idee passt zu deinen Interessen";
                             }
                             const message = {
@@ -599,7 +604,8 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                             // Send message
                             let bodyString = " posted a new idea. " +
                             "Check it out!";
-                            if (receiverU.locale == "de") {
+                            if ("locale" in receiverU &&
+                            receiverU.locale == "de") {
                               bodyString = " hat eine neue Idee. " +
                               "Mach mit!";
                             }
@@ -683,12 +689,14 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
                   }
                   // Send message
                   let titleString = " started following you";
-                  if (personU.locale == "de") {
+                  if ("locale" in personU &&
+                  personU.locale == "de") {
                     titleString = " folgt dir jetzt";
                   }
                   let bodyString = "Follow them to get notified" +
                   " when they plan something";
-                  if (personU.locale == "de") {
+                  if ("locale" in personU &&
+                  personU.locale == "de") {
                     bodyString = "Folge zurück, um bei neuen Ideen" +
                     " benachrichtigt zu werden";
                   }
