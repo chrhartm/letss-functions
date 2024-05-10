@@ -402,10 +402,28 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
     .onCreate((snap, ) => {
       const activityData = snap.data();
       const notifiedUsers: string[] = [];
-      const minMessages = 30;
+      let minMessages = 30;
+      const minMessagesVirtual = 10;
       const maxMessages = 100;
+
       console.log("ActivityId: " + snap.id);
       console.log("Activity user: " + activityData.user);
+      // TODO refactor bigtime
+      if (activityData.location.country != null &&
+          activityData.location.country == "Virtual") {
+        minMessages = minMessagesVirtual;
+        let minDate = new Date();
+        minDate.setFullYear(2000);
+        if (activityData.location.locality == "EAG London") {
+          minDate = new Date("2024-05-31");
+        } else if (activityData.location.locality == "EAGx Utrecht") {
+          minDate = new Date("2024-07-05");
+        }
+        // Return if today's date smaller than minDate
+        if (new Date() < minDate) {
+          return;
+        }
+      }
       notifiedUsers.push(activityData.user); // Don't notify sender
       // Get data on sender
       return admin.firestore().collection("persons").doc(activityData.user)
