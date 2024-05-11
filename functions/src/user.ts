@@ -215,7 +215,7 @@ exports.getConfig = functions.region("europe-west1")
                 "Not authenticated");
           }
           const db = admin.firestore();
-          let forceAddActivity = false;
+          let forceAddActivity = true;
           const searchDays = 1000;
 
           console.log("userid: " + userId);
@@ -229,11 +229,10 @@ exports.getConfig = functions.region("europe-west1")
                     throw new functions.https.HttpsError("not-found",
                         "Person not found");
                   }
-                  // TODO make more granular in future
-                  // const locality = personData.location.locality;
-                  // if (locality == "Amsterdam") {
-                  forceAddActivity = true;
-                  // }
+                  const locality = personData.location.locality;
+                  if (locality == "EAGx Utrecht") {
+                    forceAddActivity = false;
+                  }
                 });
           } catch (error) {
             console.log("error: " + error);
@@ -249,6 +248,7 @@ exports.getConfig = functions.region("europe-west1")
             "supportPitch": "Enjoying our app? Buy us a coffee and" +
               " get a supporter badge on your profile.",
             "supportRequestInterval": 360,
+            "notificationsRequestInterval": 7,
             "hubs": [
               {"name": "Amsterdam",
                 "lat": 52.370216,

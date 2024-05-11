@@ -314,8 +314,10 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
       }
 
       // Make sure new message before sending notifications
-      if ((beforeC.lastMessage.timestamp == afterC.lastMessage.timestamp) &&
-        (beforeC.lastMessage.message == afterC.lastMessage.message)) {
+      if ((beforeC.lastMessage.timestamp.isEqual(
+          afterC.lastMessage.timestamp)) &&
+          (beforeC.lastMessage.message ==
+            afterC.lastMessage.message)) {
         console.log("Message didn't change.");
         return null;
       }
