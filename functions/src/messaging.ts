@@ -80,9 +80,8 @@ exports.pushScheduled = functions.region("europe-west1").pubsub
                           notification.user + ": " + message);
                           return admin.messaging()
                               .send(message)
-                              .then((response) => {
-                                console.log("Successfully sent message:",
-                                    response);
+                              .then(() => {
+                                console.log("Sent for: " + user.token.token);
                                 // Update notification status
                                 return db.collection("scheduled-notifications")
                                     .doc(document.id)
@@ -91,6 +90,10 @@ exports.pushScheduled = functions.region("europe-west1").pubsub
                                       console.log("Updated notification",
                                           response);
                                     });
+                              })
+                              .catch((err) => {
+                                console.log("Failed to send for: " +
+                                user.token.token + err);
                               });
                         }
                         );
@@ -187,9 +190,8 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         // Send push notification
                         return admin.messaging()
                             .send(message)
-                            .then((response) => {
-                              console.log("Successfully sent message:",
-                                  response);
+                            .then(() => {
+                              console.log("Sent for: " + receiverU.token.token);
                               // Check if email should be sent
                               // Send if not sent before or
                               // last was sent > 3 days ago or
@@ -251,6 +253,10 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                               });
                                         });
                                   });
+                            })
+                            .catch((err) => {
+                              console.log("Failed to send for: " +
+                                  receiverU.token.token + err);
                             });
                       });
                 });
@@ -388,7 +394,10 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                   sendPromises.push(
                       admin.messaging()
                           .send(message)
-                          .then((response) => console.log(response))
+                          .then(() => console.log("Sent message to: " +
+                            receiver.token.token))
+                          .catch((err) => console.log("Failed to send for: " +
+                            receiver.token.token + "Err: " + err))
                   );
                 }
               }
@@ -516,8 +525,12 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
 
                                   return admin.messaging()
                                       .send(message)
-                                      .then((response) =>
-                                        console.log(response));
+                                      .then(() =>
+                                        console.log("Sent for " +
+                                        receiverU.token.token))
+                                      .catch((err) => console.log(
+                                          "Failed to send for: " +
+                                        receiverU.token.token + "Err: " + err));
                                 }).catch((err) => {
                                   console.log("Error in sending message:");
                                   console.log(err);
@@ -601,7 +614,11 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
 
                             return admin.messaging()
                                 .send(message)
-                                .then((response) => console.log(response));
+                                .then(() => console.log("Sent for " +
+                                  receiverU.token.token))
+                                .catch((err) => console.log(
+                                    "Failed to send for: " +
+                                  receiverU.token.token + " Err: " + err));
                           }));
                     });
                     return Promise.all(promises);
@@ -676,7 +693,11 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
 
                             return admin.messaging()
                                 .send(message)
-                                .then((response) => console.log(response));
+                                .then(() => console.log("Sent for " +
+                                  receiverU.token.token))
+                                .catch((err) => console.log(
+                                    "Failed to send for: " +
+                                  receiverU.token.token + " Err: " + err));
                           }));
                     });
                     return Promise.all(promises);
@@ -770,7 +791,10 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
                 personId);
                   return admin.messaging()
                       .send(message)
-                      .then((response) => console.log(response));
+                      .then(() => console.log("Sent for " +
+                        personU.token.token))
+                      .catch((err) => console.log("Failed to send for: " +
+                        personU.token.token + "Err: " + err));
                 });
           });
     });
