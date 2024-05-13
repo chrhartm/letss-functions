@@ -250,6 +250,12 @@ exports.getConfig = functions.region("europe-west1")
             "supportRequestInterval": 360,
             "notificationsRequestInterval": 7,
             "hubs": [
+              /*
+              {"name": "EAGx Utrecht",
+                "lat": 0,
+                "lng": 0,
+                "emoji": "💡"},
+                */
               {"name": "Amsterdam",
                 "lat": 52.370216,
                 "lng": 4.895168,
