@@ -2,6 +2,154 @@ import functions = require("firebase-functions");
 import admin = require("firebase-admin");
 import utils = require("./utils");
 
+// Send an email every Wednesday with activities they missed
+exports.emailMissed = functions.region("europe-west1").pubsub
+    .schedule("0 12 * * 3")
+    .timeZone("Europe/Berlin")
+    .onRun(() => {
+      const db = admin.firestore();
+      // First get all users who haven't been online in last week
+      // Then for the localities "Berlin", "London", and "Amsterdam"
+      // Get the five most recent activities since last week
+      // If there have been activities, get IDs of all persons in that locality
+      // Then intersect with the users who haven't been online
+      // Then send an email with the activities for their locality
+      const now = admin.firestore.Timestamp.now().seconds;
+      const limit = now - 60*60*24*7;
+      const localities = ["Berlin", "London", "Amsterdam"];
+      // First get list of all user IDs who haven't been online
+      const userIds: string[] = [];
+      // Use map instead of array
+      const userLanguage:{[key: string]: string} = {};
+      const templateEN = "d-014f94e5aa594abd8991e09026a7c425";
+      const templateDE = "d-5ed6163adc41487ca613f2889276fe56";
+
+      return db.collection("users")
+          .where("lastOnline", "<", admin.firestore.Timestamp.fromMillis(
+              limit*1000))
+          .get().then((querySnapshot) => {
+            querySnapshot.forEach((document) => {
+              userIds.push(document.id);
+              const locale = document.data().locale;
+              if (locale != null && locale == "de") {
+                userLanguage[document.id] = locale;
+              } else {
+                userLanguage[document.id] = "en";
+              }
+            });
+            console.log("Found " + userIds.length + " users." +
+              "First is " + userIds[0]);
+          }).then(() => {
+            // Then get the five most recent activities for each locality
+            const activityPromises = [];
+            for (const locality of localities) {
+              console.log("Locality: " + locality);
+              const activities: string[] = [];
+              const personIDs: string[] = [];
+              activityPromises.push(db.collection("activities")
+                  .where("location.locality", "==", locality)
+                  .where("timestamp", ">", admin.firestore.Timestamp.fromMillis(
+                      limit*1000))
+                  .where("status", "==", "ACTIVE")
+                  .orderBy("timestamp", "desc")
+                  .limit(5)
+                  .get()
+                  .then((querySnapshot) => {
+                    // get activity data
+                    querySnapshot.forEach((document) => {
+                      const activity = document.data();
+                      activities.push("• " + activity.name);
+                      personIDs.push(activity.user);
+                    });
+
+                    // Check if there are activities
+                    if (activities.length == 0) {
+                      console.log("No activities for " + locality);
+                      return;
+                    }
+
+                    console.log("Activities (" + locality + "): " +
+                      activities.map((a) => a).join("\n"));
+
+                    // Get names for all persons of each activity
+                    return db.collection("persons")
+                        .where(admin.firestore.FieldPath.documentId(), "in",
+                            personIDs)
+                        .get().then((querySnapshot) => {
+                          const activityPersons: string[] = [];
+                          querySnapshot.forEach((document) => {
+                            const person = document.data();
+                            activityPersons.push(person.name);
+                          });
+                          activityPersons.reverse();
+                          console.log("Persons: " + activityPersons.join(", "));
+
+                          // Get all persons in locality
+                          const persons: string[] = [];
+                          return db.collection("persons")
+                              .where("location.locality", "==", locality)
+                              .get().then((querySnapshot) => {
+                                querySnapshot.forEach((document) => {
+                                  persons.push(document.id);
+                                });
+                                // Intersect with users who haven't been online
+                                const receivers = persons.filter((person) =>
+                                  userIds.includes(person));
+                                // Get email adresses
+                                if (receivers.length == 0) {
+                                  console.log("No users for " + locality);
+                                  return;
+                                }
+                                const emailPromises = [];
+                                for (const receiver of receivers) {
+                                  emailPromises.push(
+                                      admin.auth().getUser(receiver)
+                                          .then((userRecord) => {
+                                            const userEmail = userRecord.email;
+                                            if (userEmail == null) {
+                                              console.log("No email for " +
+                                                receiver);
+                                              return;
+                                            }
+                                            console.log("Sending email to: " +
+                                        receiver + " for locality " +
+                                        locality);
+                                            // typscript string, string map
+                                            const data:
+                                            {[key: string]: string} =
+                                              {locality: locality};
+                                            while (activities.length > 0) {
+                                              data["idea-" +
+                                              activities.length] =
+                                        activities.pop() as string + " (" +
+                                        activityPersons.pop() + ")";
+                                            }
+                                            const template =
+                                              userLanguage[receiver] == "de" ?
+                                              templateDE : templateEN;
+
+                                            // Send email
+                                            return utils.sendEmail(
+                                                template,
+                                                "Letss",
+                                                "christoph@letss.app",
+                                                userEmail,
+                                                24545,
+                                                data
+                                            );
+                                          }));
+                                }
+                                return Promise.all(emailPromises);
+                              });
+                        });
+                  }
+                  ));
+            }
+            return Promise.all(activityPromises);
+          });
+    });
+
+
 // Push a notification every Friday with a preselected activity
 exports.pushScheduled = functions.region("europe-west1").pubsub
     .schedule("0 12 * * 5")
