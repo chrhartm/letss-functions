@@ -100,6 +100,16 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                                   console.log("No users for " + locality);
                                   return;
                                 }
+                                // typscript string, string map
+                                const data:
+                                {[key: string]: string} =
+                                  {locality: locality};
+                                while (activities.length > 0) {
+                                  data["idea-" +
+                                  activities.length] =
+                                    activities.pop() as string + " (" +
+                                    activityPersons.pop() + ")";
+                                }
                                 const emailPromises = [];
                                 for (const receiver of receivers) {
                                   emailPromises.push(
@@ -111,19 +121,15 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                                                 receiver);
                                               return;
                                             }
-                                            console.log("Sending email to: " +
-                                        receiver + " for locality " +
-                                        locality);
-                                            // typscript string, string map
-                                            const data:
-                                            {[key: string]: string} =
-                                              {locality: locality};
-                                            while (activities.length > 0) {
-                                              data["idea-" +
-                                              activities.length] =
-                                        activities.pop() as string + " (" +
-                                        activityPersons.pop() + ")";
+                                            if (data.keys.length == 1) {
+                                              console.log("No data for " +
+                                                receiver);
+                                              return;
                                             }
+                                            console.log("Sending email to: " +
+                                              receiver + " for locality " +
+                                              locality);
+
                                             const template =
                                               userLanguage[receiver] == "de" ?
                                               templateDE : templateEN;
