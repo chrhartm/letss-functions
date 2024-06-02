@@ -37,8 +37,10 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                 userLanguage[document.id] = "en";
               }
             });
-            console.log("Found " + userIds.length + " users." +
-              "First is " + userIds[0]);
+            if (querySnapshot.size > 0) {
+              console.log("Found " + userIds.length + " users." +
+                "First is " + userIds[0]);
+            }
           }).then(() => {
             // Then get the five most recent activities for each locality
             const activityPromises = [];
@@ -77,12 +79,21 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                             personIDs)
                         .get().then((querySnapshot) => {
                           const activityPersons: string[] = [];
+                          const docIDs: string[] = [];
                           querySnapshot.forEach((document) => {
                             const person = document.data();
+                            docIDs.push(document.id);
                             activityPersons.push(person.name);
                           });
-                          activityPersons.reverse();
-                          console.log("Persons: " + activityPersons.join(", "));
+                          // put activityPersons in the right order
+                          const orderedPersons: string[] = [];
+                          for (const id of personIDs) {
+                            const index = docIDs.indexOf(id);
+                            if (index > -1) {
+                              orderedPersons.push(activityPersons[index]);
+                            }
+                          }
+                          console.log("Persons: " + orderedPersons.join(", "));
 
                           // Get all persons in locality
                           const persons: string[] = [];
@@ -101,15 +112,16 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                                   return;
                                 }
                                 // typscript string, string map
-                                const data:
+                                const emailData:
                                 {[key: string]: string} =
                                   {locality: locality};
                                 while (activities.length > 0) {
-                                  data["idea-" +
+                                  emailData["idea-" +
                                   activities.length] =
                                     activities.pop() as string + " (" +
-                                    activityPersons.pop() + ")";
+                                    orderedPersons.pop() + ")";
                                 }
+                                console.log(emailData);
                                 const emailPromises = [];
                                 for (const receiver of receivers) {
                                   emailPromises.push(
@@ -121,7 +133,8 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                                                 receiver);
                                               return;
                                             }
-                                            if (data.keys.length == 1) {
+                                            if (Object.keys(emailData).length ==
+                                              1) {
                                               console.log("No data for " +
                                                 receiver);
                                               return;
@@ -134,6 +147,9 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                                               userLanguage[receiver] == "de" ?
                                               templateDE : templateEN;
 
+                                            console.log("Template: " +
+                                              template);
+
                                             // Send email
                                             return utils.sendEmail(
                                                 template,
@@ -141,7 +157,7 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                                                 "christoph@letss.app",
                                                 userEmail,
                                                 24545,
-                                                data
+                                                emailData
                                             );
                                           }));
                                 }
