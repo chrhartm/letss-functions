@@ -229,10 +229,13 @@ exports.getConfig = functions.region("europe-west1")
                     throw new functions.https.HttpsError("not-found",
                         "Person not found");
                   }
+                  // TODO Fix this
+                  /*
                   const locality = personData.location.locality;
-                  if (locality == "EAGx Utrecht") {
-                    forceAddActivity = false;
-                  }
+                  if (locality == "EAGx Utrecht" || locality == "EAGx London") {
+
+                   } */
+                  forceAddActivity = false;
                 });
           } catch (error) {
             console.log("error: " + error);
