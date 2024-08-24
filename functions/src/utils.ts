@@ -1,6 +1,6 @@
-import sendGridMail = require("@sendgrid/mail");
-import sendGridClient = require("@sendgrid/client");
-import functions = require("firebase-functions");
+import * as sendGridMail from "@sendgrid/mail";
+import * as sendGridClient from "@sendgrid/client";
+import {config} from "firebase-functions";
 
 /**
  * Copied from https://firebase.google.com/docs/firestore/manage-data/delete-data
@@ -93,7 +93,7 @@ export async function sendEmail(templateId: string,
     data: any) {
   console.log("Sending email with template " + templateId);
 
-  sendGridMail.setApiKey(functions.config().sendgrid.key);
+  sendGridMail.setApiKey(config().sendgrid.key);
 
   const mailData = {
     to: toAddress,
@@ -126,7 +126,7 @@ export async function addToEmailList(
     count: number,
     language: string,
 ) {
-  sendGridClient.setApiKey(functions.config().sendgrid.key);
+  sendGridClient.setApiKey(config().sendgrid.key);
   console.log(language);
   // replace empty language by english
   if (language === "" || language === undefined) {
@@ -168,14 +168,14 @@ export async function addToEmailList(
    * @return {function} - Some function
    */
 export async function removeFromEmailList(address: string) {
-  sendGridClient.setApiKey(functions.config().sendgrid.key);
+  sendGridClient.setApiKey(config().sendgrid.key);
   // First get the contact ID
   console.log(address);
   const request = {
     method: "POST" as const,
     url: "/v3/marketing/contacts/search",
     body: {
-      query: "email LIKE lower('" + address + "')", // eslint-disable-line
+      query: "email LIKE lower('" + address + "')",  
     },
   };
   return sendGridClient.request(request).then(([response]) => {

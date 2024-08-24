@@ -1,11 +1,14 @@
-import firebaseAdmin = require("firebase-admin");
-import activity = require("./activity");
-import messaging = require("./messaging");
-import user = require("./user");
-import categories = require("./categories");
-import admin = require("./admin");
+import { setGlobalOptions } from 'firebase-functions/v2';
+setGlobalOptions({ region: 'europe-west1'});
 
-firebaseAdmin.initializeApp();
+import {initializeApp} from "firebase-admin";
+import * as activity from "./activity";
+import * as messaging from "./messaging";
+import * as  user from "./user";
+import * as categories from "./categories";
+import * as admin from "./admin";
+
+exports.initializeApp = () => initializeApp();
 
 exports.user = user;
 exports.activity = activity;

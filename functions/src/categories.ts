@@ -1,19 +1,25 @@
-import functions = require("firebase-functions");
-import admin = require("firebase-admin");
+import {HttpsError}
+  from "firebase-functions/v2/https";
+  import {onDocumentCreated}
+  from "firebase-functions/v2/firestore";
+import {firestore} from "firebase-admin";
 import {FieldValue} from "firebase-admin/firestore";
 
-exports.incrementCategoryPopularity = functions.region("europe-west1")
-    .firestore
-    .document("/activities/{activityId}")
-    .onCreate((snap, ) => {
-      const db = admin.firestore();
-      const activity = snap.data();
+exports.incrementCategoryPopularity = onDocumentCreated(
+    "/activities/{activityId}", (event) => {
+      if (event.data == null) {
+        throw new HttpsError("not-found",
+            "No data.");
+      }
+      const db = firestore();
+      const activity = event.data.data();
+      const activityId = event.params.activityId;
 
-      console.log("ActivityId: " + snap.id);
+      console.log("ActivityId: " + activityId);
 
       if (activity.location.isoCountryCode == null) {
-        console.log("No country code for activity: " + snap.id);
-        throw new functions.https.HttpsError("not-found",
+        console.log("No country code for activity: " + activityId);
+        throw new HttpsError("not-found",
             "Couldn't find country code for activity.");
       }
       return Promise.all(activity.categories.map(
@@ -28,7 +34,7 @@ exports.incrementCategoryPopularity = functions.region("europe-west1")
                 .catch(function(err) {
                   console.log("Error incrementing cateogry " +
                                 category + " " + err);
-                  throw new functions.https.HttpsError("unknown",
+                  throw new HttpsError("unknown",
                       "Error incrementing categories: " + err);
                 });
           }));

@@ -8,11 +8,9 @@ import {Change} from "firebase-functions/v2";
 import {firestore, auth, storage} from "firebase-admin";
 import {addToEmailList, removeFromEmailList, deleteCollection,
     deleteQueryResults} from "./utils";
-const {setGlobalOptions} = require("firebase-functions/v2"); // eslint-disable-line
-setGlobalOptions({region: "europe-west1"});
 
 
-exports.updateSubscription = onCall(
+exports.updateSubscription = onCall({region: "europe-west1"},
     async (request: CallableRequest) => {
       const userId = request.auth?request.auth.uid:null;
       if (userId == null) {
@@ -65,7 +63,7 @@ exports.updateSubscription = onCall(
       }
     });
 
-exports.markReviewRequested = onCall(
+exports.markReviewRequested = onCall({region: "europe-west1"},
     async (request: CallableRequest) => {
       /*
           if (context.app == undefined) {
@@ -93,7 +91,7 @@ exports.markReviewRequested = onCall(
       }
     });
 
-exports.markSupportRequested = onCall(
+exports.markSupportRequested = onCall({region: "europe-west1"},
     async (request: CallableRequest) => {
       /*
           if (context.app == undefined) {
@@ -121,7 +119,7 @@ exports.markSupportRequested = onCall(
       }
     });
 
-exports.markNotificationsRequested = onCall(
+exports.markNotificationsRequested = onCall({region: "europe-west1"},
     async (request: CallableRequest) => {
       /*
           if (context.app == undefined) {
@@ -150,7 +148,7 @@ exports.markNotificationsRequested = onCall(
       }
     });
 
-exports.updateLastOnline = onCall(
+exports.updateLastOnline = onCall({region: "europe-west1"},
     async (request: CallableRequest) => {
       /*
           if (context.app == undefined) {
@@ -178,7 +176,7 @@ exports.updateLastOnline = onCall(
       }
     });
 
-exports.getConfig = onCall(
+exports.getConfig = onCall({region: "europe-west1"},
     async (request: CallableRequest) => {
       /*
           if (context.app == undefined) {
@@ -262,7 +260,7 @@ exports.getConfig = onCall(
       return returnData;
     });
 
-exports.updateToken = onCall(
+exports.updateToken = onCall({region: "europe-west1"},
     async (request: CallableRequest) => {
       /*
           if (context.app == undefined) {
@@ -297,7 +295,7 @@ exports.updateToken = onCall(
       }
     });
 
-exports.updateLocale = onCall(
+exports.updateLocale = onCall({region: "europe-west1"},
     async (request: CallableRequest) => {
       /*
           if (context.app == undefined) {
@@ -463,7 +461,7 @@ async function sendEmailOnJoin(change: Change<QueryDocumentSnapshot>) {
       });
 }
 
-exports.initializeUser = beforeUserCreated(
+exports.initializeUser = beforeUserCreated({region: "europe-west1"},
     async (event: AuthBlockingEvent, ) => {
       const db = firestore();
       const payload = {"coins": 10,
@@ -488,7 +486,7 @@ exports.initializeUser = beforeUserCreated(
           });
     });
 
-exports.deleteUser = onCall(
+exports.deleteUser = onCall({region: "europe-west1"},
     async (request: CallableRequest) => {
       /*
           if (context.app == undefined) {

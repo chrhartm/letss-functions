@@ -1,20 +1,21 @@
-import functions = require("firebase-functions");
-import admin = require("firebase-admin");
-import utils = require("./utils");
+import {HttpsError}
+  from "firebase-functions/v2/https";
+import {onDocumentCreated, onDocumentUpdated}
+  from "firebase-functions/v2/firestore";
+import {firestore, auth, messaging} from "firebase-admin";
+import {onSchedule} from "firebase-functions/v2/scheduler";
+import * as utils from "./utils";
 
 // Send an email every Wednesday with activities they missed
-exports.emailMissed = functions.region("europe-west1").pubsub
-    .schedule("0 12 * * 3")
-    .timeZone("Europe/Berlin")
-    .onRun(() => {
-      const db = admin.firestore();
+exports.emailMissed = onSchedule("0 10 * * 3", () => {
+      const db = firestore();
       // First get all users who haven't been online in last week
       // Then for the localities "Berlin", "London", and "Amsterdam"
       // Get the five most recent activities since last week
       // If there have been activities, get IDs of all persons in that locality
       // Then intersect with the users who haven't been online
       // Then send an email with the activities for their locality
-      const now = admin.firestore.Timestamp.now().seconds;
+      const now = firestore.Timestamp.now().seconds;
       const limit = now - 60*60*24*7;
       const localities = ["Berlin", "London", "Amsterdam"];
       // First get list of all user IDs who haven't been online
@@ -25,7 +26,7 @@ exports.emailMissed = functions.region("europe-west1").pubsub
       const templateDE = "d-5ed6163adc41487ca613f2889276fe56";
 
       return db.collection("users")
-          .where("lastOnline", "<", admin.firestore.Timestamp.fromMillis(
+          .where("lastOnline", "<", firestore.Timestamp.fromMillis(
               limit*1000))
           .get().then((querySnapshot) => {
             querySnapshot.forEach((document) => {
@@ -50,7 +51,7 @@ exports.emailMissed = functions.region("europe-west1").pubsub
               const personIDs: string[] = [];
               activityPromises.push(db.collection("activities")
                   .where("location.locality", "==", locality)
-                  .where("timestamp", ">", admin.firestore.Timestamp.fromMillis(
+                  .where("timestamp", ">", firestore.Timestamp.fromMillis(
                       limit*1000))
                   .where("status", "==", "ACTIVE")
                   .orderBy("timestamp", "desc")
@@ -75,7 +76,7 @@ exports.emailMissed = functions.region("europe-west1").pubsub
 
                     // Get names for all persons of each activity
                     return db.collection("persons")
-                        .where(admin.firestore.FieldPath.documentId(), "in",
+                        .where(firestore.FieldPath.documentId(), "in",
                             personIDs)
                         .get().then((querySnapshot) => {
                           const activityPersons: string[] = [];
@@ -125,7 +126,7 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                                 const emailPromises = [];
                                 for (const receiver of receivers) {
                                   emailPromises.push(
-                                      admin.auth().getUser(receiver)
+                                      auth().getUser(receiver)
                                           .then((userRecord) => {
                                             const userEmail = userRecord.email;
                                             if (userEmail == null) {
@@ -161,28 +162,27 @@ exports.emailMissed = functions.region("europe-west1").pubsub
                                             );
                                           }));
                                 }
-                                return Promise.all(emailPromises);
+                                // then() needed to match return type
+                                return Promise.all(emailPromises).then(() => {});
                               });
                         });
                   }
                   ));
             }
-            return Promise.all(activityPromises);
+            // then() needed to match return type
+            return Promise.all(activityPromises).then(() => {});
           });
     });
 
 
 // Push a notification every Friday with a preselected activity
-exports.pushScheduled = functions.region("europe-west1").pubsub
-    .schedule("0 12 * * 5")
-    .timeZone("Europe/Berlin")
-    .onRun(() => {
-      const db = admin.firestore();
+exports.pushScheduled = onSchedule("0 10 * * 5", () => {
+      const db = firestore();
       // Get notification data from database
       return db.collection("scheduled-notifications")
           .where("status", "==", "scheduled")
           .where("timestamp", "<=",
-              admin.firestore.Timestamp.now())
+              firestore.Timestamp.now())
           .get()
           .then((querySnapshot) => {
             const promises: Promise<void>[] = [];
@@ -248,7 +248,7 @@ exports.pushScheduled = functions.region("europe-west1").pubsub
                           };
                           console.log("Sending message to " +
                           notification.user + ": " + message);
-                          return admin.messaging()
+                          return messaging()
                               .send(message)
                               .then(() => {
                                 console.log("Sent for: " + user.token.token);
@@ -270,42 +270,47 @@ exports.pushScheduled = functions.region("europe-west1").pubsub
                   }
                   ));
             });
-            return Promise.all(promises);
+            // then() needed to match return type
+            return Promise.all(promises).then(() => {});
           });
     });
 
-exports.pushOnLike = functions.region("europe-west1").firestore
-    .document("/activities/{activityId}/likes/{likeId}")
-    .onCreate((snap, context) => {
-      const db = admin.firestore();
-      console.log("ActivityId: " + context.params.activityId);
-      console.log("LikeId: " + context.params.likeId);
+exports.pushOnLike = onDocumentCreated(
+    "/activities/{activityId}/likes/{likeId}", (event) => {
+      const snap = event.data;
+      if (snap == null) {
+        throw new HttpsError("not-found",
+            "No data.");
+      }      
+      const db = firestore();
+      console.log("ActivityId: " + event.params.activityId);
+      console.log("LikeId: " + event.params.likeId);
       console.log("PersonId: " + snap.id);
       // Get data on sender
       return db.collection("persons").doc(snap.id)
           .get().then((senderDoc) => {
             if (senderDoc.exists == false) {
               console.log("Couldn't find person: " + snap.id);
-              throw new functions.https.HttpsError("not-found",
+              throw new HttpsError("not-found",
                   "Couldn't find person.");
             }
             const senderP = senderDoc.data();
             if (senderP == null) {
-              throw new functions.https.HttpsError("not-found",
+              throw new HttpsError("not-found",
                   "Couldn't find sender.");
             }
             // Get data on activity
-            return db.collection("activities").doc(context.params.activityId)
+            return db.collection("activities").doc(event.params.activityId)
                 .get().then((activity) => {
                   if (activity.exists == false) {
                     console.log("Couldn't find activity: " +
-                        context.params.activityId);
-                    throw new functions.https.HttpsError("not-found",
+                        event.params.activityId);
+                    throw new HttpsError("not-found",
                         "Couldn't find activity.");
                   }
                   const activityData = activity.data();
                   if (activityData == null) {
-                    throw new functions.https.HttpsError("not-found",
+                    throw new HttpsError("not-found",
                         "Couldn't find activity");
                   }
                   // Get data on receiver
@@ -315,16 +320,16 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                         if (receiverDoc.exists == false) {
                           console.log("Couldn't find user: " +
                               activityData.user);
-                          throw new functions.https.HttpsError("not-found",
+                          throw new HttpsError("not-found",
                               "Couldn't find user.");
                         }
                         const receiverU = receiverDoc.data();
                         if (receiverU == null) {
-                          throw new functions.https.HttpsError("not-found",
+                          throw new HttpsError("not-found",
                               "Couldn't find user.");
                         }
                         /*
-                        const now = admin.firestore.Timestamp.now().seconds;
+                        const now = firestore.Timestamp.now().seconds;
                         const limitUnopened = now - 60*60*24*3;
                         const limitOpened = now - 60*60*24;
                         const lastEmail = receiverU.lastEmail==null?null:
@@ -343,7 +348,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                           },
                           data: {
                             link: "https://letss.app/myactivity/" +
-                              context.params.activityId,
+                              event.params.activityId,
                           },
                           token: receiverU.token.token,
                           apns: {
@@ -358,7 +363,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                             activityData.user +
                             ": " + message.notification.body);
                         // Send push notification
-                        return admin.messaging()
+                        return messaging()
                             .send(message)
                             .then(() => {
                               console.log("Sent for: " + receiverU.token.token);
@@ -379,11 +384,11 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                               }
                               */
                               // Get user email
-                              return admin.auth().getUser(activityData.user)
+                              return auth().getUser(activityData.user)
                                   .then((userRecord) => {
                                     const userEmail = userRecord.email;
                                     if (userEmail == null) {
-                                      throw new functions.https.HttpsError(
+                                      throw new HttpsError(
                                           "not-found",
                                           "Couldn't find user email.");
                                     }
@@ -415,7 +420,7 @@ exports.pushOnLike = functions.region("europe-west1").firestore
                                           return db.collection("users")
                                               .doc(activityData.user)
                                               .update({lastEmail:
-                                                admin.firestore.Timestamp
+                                                firestore.Timestamp
                                                     .now()})
                                               .then((response) => {
                                                 console.log("Updated user",
@@ -433,15 +438,20 @@ exports.pushOnLike = functions.region("europe-west1").firestore
           });
     });
 
-exports.pushOnMessage = functions.region("europe-west1").firestore
-    .document("/chats/{chatId}")
-    .onUpdate(async (change, context) => {
-      const beforeC = change.before.data();
-      const afterC = change.after.data();
+exports.pushOnMessage = onDocumentUpdated(
+  "/chats/{chatId}", (event) => {
+      if(event.data == null) {
+        throw new HttpsError("not-found",
+            "No data.");
+      }
+      const beforeC = event.data.before.data();
+      const afterC = event.data.after.data();
 
-      console.log("ChatId: " + context.params.chatId);
+      console.log("ChatId: " + event.params.chatId);
       console.log("Before message: " + beforeC.lastMessage.message);
       console.log("After message: " + afterC.lastMessage.message);
+
+      let updateUserPromise = Promise.resolve();
 
       // If a user moved to usersLeft, then update activity
       if (beforeC.activityData != null) {
@@ -449,7 +459,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
         if (beforeC.usersLeft.length != afterC.usersLeft.length &&
           activityUid != null) {
           console.log("before first await");
-          await admin.firestore().collection("activities")
+          updateUserPromise = firestore().collection("activities")
               .doc(activityUid)
               .get().then((document) => {
                 if (document.exists == false) {
@@ -471,10 +481,11 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                     participants.splice(myIndex, 1);
                   }
                   console.log(participants);
-                  return admin.firestore().collection("activities")
+                  return firestore().collection("activities")
                       .doc(activityUid)
                       .update({"participants": participants,
                         "participantsLeft": afterC.usersLeft})
+                      .then(() => console.log("Updated activity"))
                       .catch(() => console.log("couldn't update activity"));
                 } else {
                   console.log("Null users");
@@ -498,18 +509,19 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
         return null;
       }
 
-      await admin.firestore().collection("persons")
+      return updateUserPromise.then(() => {
+        return firestore().collection("persons")
           .doc(afterC.lastMessage.user)
           .get().then((document) => {
             if (document.exists == false) {
               console.log("Couldn't find person: " +
                 afterC.lastMessage.user);
-              throw new functions.https.HttpsError("not-found",
+              throw new HttpsError("not-found",
                   "Couldn't find person.");
             }
             const senderP = document.data();
             if (senderP == null) {
-              throw new functions.https.HttpsError("not-found",
+              throw new HttpsError("not-found",
                   "Couldn't find person.");
             }
             // look through all users in chat and send message
@@ -517,7 +529,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
             const receiverPromises = [];
             for (const user of afterC.users) {
               if (user != afterC.lastMessage.user) {
-                receiverPromises.push(admin.firestore().collection("users")
+                receiverPromises.push(firestore().collection("users")
                     .doc(user)
                     .get().then((document) => {
                       if (document.exists == false) {
@@ -545,7 +557,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                     },
                     data: {
                       link: "https://letss.app/chat/" +
-                      context.params.chatId,
+                      event.params.chatId,
                     },
                     token: receiver.token.token,
                     apns: {
@@ -562,7 +574,7 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
                   console.log("Using token: " +
                     receiver.token.token);
                   sendPromises.push(
-                      admin.messaging()
+                      messaging()
                           .send(message)
                           .then(() => console.log("Sent message to: " +
                             receiver.token.token))
@@ -575,12 +587,17 @@ exports.pushOnMessage = functions.region("europe-west1").firestore
             }
             );
           });
-      return;
+      });
     });
 
-exports.pushOnNewActivity = functions.region("europe-west1").firestore
-    .document("/activities/{activityId}")
-    .onCreate((snap, ) => {
+exports.pushOnNewActivity = onDocumentCreated(
+    "/activities/{activityId}",
+    (event) => {
+      const snap = event.data;
+      if (snap == null) {
+        throw new HttpsError("not-found",
+            "No data.");
+      }
       const activityData = snap.data();
       const notifiedUsers: string[] = [];
       let minMessages = 30;
@@ -607,21 +624,21 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
       }
       notifiedUsers.push(activityData.user); // Don't notify sender
       // Get data on sender
-      return admin.firestore().collection("persons").doc(activityData.user)
+      return firestore().collection("persons").doc(activityData.user)
           .get().then((document) => {
             if (document.exists == false) {
               console.log("Couldn't find person: " +
               activityData.user);
-              throw new functions.https.HttpsError("not-found",
+              throw new HttpsError("not-found",
                   "Couldn't find person.");
             }
             const senderP = document.data();
             if (senderP == null) {
-              throw new functions.https.HttpsError("not-found",
+              throw new HttpsError("not-found",
                   "Couldn't find person.");
             }
             // Send update to all followers of sender
-            const followerPromise = admin.firestore().collection("followers")
+            const followerPromise = firestore().collection("followers")
                 .doc(activityData.user).collection("followers")
                 .limit(maxMessages)
                 .get().then((querySnapshot) => {
@@ -631,33 +648,33 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                     notifiedUsers.push(follower);
                     // check if receiver user has same location as activity
                     console.log("Follower: " + follower);
-                    promises.push(admin.firestore().collection("persons")
+                    promises.push(firestore().collection("persons")
                         .doc(follower).get().then((doc) => {
                           if (doc.exists == false) {
                             console.log("Couldn't find person: " +
                           follower);
-                            throw new functions.https.HttpsError("not-found",
+                            throw new HttpsError("not-found",
                                 "Couldn't find person.");
                           }
                           const receiverP = doc.data();
                           if (receiverP == null) {
-                            throw new functions.https.HttpsError("not-found",
+                            throw new HttpsError("not-found",
                                 "Couldn't find person.");
                           }
                           if (receiverP.location.locality ==
                             activityData.location.locality) {
                             // Get data on receiver
-                            return admin.firestore().collection("users")
+                            return firestore().collection("users")
                                 .doc(follower).get().then((doc) => {
                                   if (doc.exists == false) {
                                     console.log("Couldn't find user: " +
                             follower);
-                                    throw new functions.https.HttpsError(
+                                    throw new HttpsError(
                                         "not-found", "Couldn't find user.");
                                   }
                                   const receiverU = doc.data();
                                   if (receiverU == null) {
-                                    throw new functions.https.HttpsError(
+                                    throw new HttpsError(
                                         "not-found", "Couldn't find user.");
                                   }
                                   if (receiverU.token == null) {
@@ -693,7 +710,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                           follower +
                           ": " + message);
 
-                                  return admin.messaging()
+                                  return messaging()
                                       .send(message)
                                       .then(() =>
                                         console.log("Sent for " +
@@ -720,7 +737,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
             console.log("Interests: " + activityData.categories);
             let locationPromise = Promise.resolve() as Promise<void | void[]>;
             if (activityData.categories.length > 0) {
-              locationPromise = admin.firestore().collection("persons")
+              locationPromise = firestore().collection("persons")
                   .where("location.locality", "==",
                       activityData.location.locality)
                   .where("interests", "array-contains-any",
@@ -737,17 +754,17 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                       notifiedUsers.push(user);
                       console.log("InterestUser: " + user);
                       // Get data on receiver
-                      promises.push(admin.firestore().collection("users")
+                      promises.push(firestore().collection("users")
                           .doc(user).get().then((doc) => {
                             if (doc.exists == false) {
                               console.log("Couldn't find user: " +
                         user);
-                              throw new functions.https.HttpsError("not-found",
+                              throw new HttpsError("not-found",
                                   "Couldn't find user.");
                             }
                             const receiverU = doc.data();
                             if (receiverU == null) {
-                              throw new functions.https.HttpsError("not-found",
+                              throw new HttpsError("not-found",
                                   "Couldn't find user.");
                             }
                             if (receiverU.token == null) {
@@ -782,7 +799,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                       user +
                       ": " + message);
 
-                            return admin.messaging()
+                            return messaging()
                                 .send(message)
                                 .then(() => console.log("Sent for " +
                                   receiverU.token.token))
@@ -800,7 +817,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
             */
             let newpersonPromise = Promise.resolve() as Promise<void | void[]>;
             if (notifiedUsers.length < minMessages) {
-              newpersonPromise = admin.firestore().collection("persons")
+              newpersonPromise = firestore().collection("persons")
                   .where("location.locality", "==",
                       activityData.location.locality)
                   .limit(minMessages)
@@ -814,17 +831,17 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                       }
                       console.log("RandomUser: " + user);
                       // Get data on receiver
-                      promises.push(admin.firestore().collection("users")
+                      promises.push(firestore().collection("users")
                           .doc(user).get().then((doc) => {
                             if (doc.exists == false) {
                               console.log("Couldn't find user: " +
                           user);
-                              throw new functions.https.HttpsError("not-found",
+                              throw new HttpsError("not-found",
                                   "Couldn't find user.");
                             }
                             const receiverU = doc.data();
                             if (receiverU == null) {
-                              throw new functions.https.HttpsError("not-found",
+                              throw new HttpsError("not-found",
                                   "Couldn't find user.");
                             }
                             // Send message
@@ -861,7 +878,7 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
                         user +
                         ": " + message);
 
-                            return admin.messaging()
+                            return messaging()
                                 .send(message)
                                 .then(() => console.log("Sent for " +
                                   receiverU.token.token))
@@ -884,11 +901,16 @@ exports.pushOnNewActivity = functions.region("europe-west1").firestore
           });
     });
 
-exports.pushOnFollower = functions.region("europe-west1").firestore
-    .document("/followers/{personId}/followers/{followerId}")
-    .onCreate((snap, context) => {
+exports.pushOnFollower = onDocumentCreated(
+    "/followers/{personId}/followers/{followerId}",
+    (event) => {
+      const snap = event.data;
+      if (snap == null) {
+        throw new HttpsError("not-found",
+            "No data.");
+      }
       const follower = snap.id;
-      const personId = context.params.personId;
+      const personId = event.params.personId;
       const trigger = snap.data()["trigger"];
       console.log("PersonId: " + personId);
       console.log("FollowerId: " + follower);
@@ -899,32 +921,32 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
         }
       }
       // Get name of follower
-      return admin.firestore().collection("persons").doc(follower)
+      return firestore().collection("persons").doc(follower)
           .get().then((document) => {
             if (document.exists == false) {
               console.log("Couldn't find person: " +
               follower);
-              throw new functions.https.HttpsError("not-found",
+              throw new HttpsError("not-found",
                   "Couldn't find person.");
             }
             const followerP = document.data();
             if (followerP == null) {
-              throw new functions.https.HttpsError("not-found",
+              throw new HttpsError("not-found",
                   "Couldn't find person.");
             }
 
             // Send message to person that they have a new follower
-            return admin.firestore().collection("users")
+            return firestore().collection("users")
                 .doc(personId).get().then((doc) => {
                   if (doc.exists == false) {
                     console.log("Couldn't find user: " +
                   personId);
-                    throw new functions.https.HttpsError("not-found",
+                    throw new HttpsError("not-found",
                         "Couldn't find user.");
                   }
                   const personU = doc.data();
                   if (personU == null) {
-                    throw new functions.https.HttpsError("not-found",
+                    throw new HttpsError("not-found",
                         "Couldn't find user.");
                   }
                   // Send message
@@ -959,7 +981,7 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
                   };
                   console.log("Sending follower to " +
                 personId);
-                  return admin.messaging()
+                  return messaging()
                       .send(message)
                       .then(() => console.log("Sent for " +
                         personU.token.token))
@@ -970,9 +992,14 @@ exports.pushOnFollower = functions.region("europe-west1").firestore
     });
 
 
-exports.alertOnFlag = functions.region("europe-west1").firestore
-    .document("/flags/{flagId}")
-    .onCreate((snap, ) => {
+exports.alertOnFlag = onDocumentCreated(
+    "/flags/{flagId}",
+    (event) => {
+      const snap = event.data;
+      if (snap == null) {
+        throw new HttpsError("not-found",
+            "No data.");
+      }
       const flag = snap.data();
       console.log("FlagId: " + snap.id);
       // Get data on sender
@@ -992,7 +1019,7 @@ exports.alertOnFlag = functions.region("europe-west1").firestore
           })
           .catch(function(error) {
             console.log("Error sending email: ", error);
-            throw new functions.https.HttpsError("unknown",
+            throw new HttpsError("unknown",
                 "Error sending email.");
           });
     });

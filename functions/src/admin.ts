@@ -1,9 +1,11 @@
-import functions = require("firebase-functions");
-import admin = require("firebase-admin");
+import {onRequest} 
+  from "firebase-functions/v2/https";
+import {firestore} from "firebase-admin";
 
-exports.bootstrapDb = functions.region("europe-west1").https
-    .onRequest(async (req, res) => {
-      const db = admin.firestore();
+
+exports.bootstrapDb = onRequest({region: "europe-west1"},
+      async (req, res) => {
+      const db = firestore();
 
       if (req.query.passphrase != "supersecretpassphrase123") {
         res.status(401).send("Not authenticated");
@@ -16,7 +18,7 @@ exports.bootstrapDb = functions.region("europe-west1").https
         "bio": "This user was deleted.",
         "gender": "",
         "interests": [],
-        "dob": admin.firestore.Timestamp.now()};
+        "dob": firestore.Timestamp.now()};
       await db.collection("persons")
           .doc("DELETED")
           .set(payload)
@@ -82,7 +84,7 @@ exports.bootstrapDb = functions.region("europe-west1").https
                 "name": categories[category],
                 "popularity": 1,
                 "status": "ACTIVE",
-                "timestamp": admin.firestore.Timestamp.now(),
+                "timestamp": firestore.Timestamp.now(),
               };
               await db.collection("categories").doc(countries[country])
                   .collection("categories")
