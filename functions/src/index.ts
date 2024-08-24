@@ -1,14 +1,14 @@
 import { setGlobalOptions } from 'firebase-functions/v2';
 setGlobalOptions({ region: 'europe-west1'});
 
-import {initializeApp} from "firebase-admin";
+import {initializeApp} from "firebase-admin/app";
 import * as activity from "./activity";
 import * as messaging from "./messaging";
 import * as  user from "./user";
 import * as categories from "./categories";
 import * as admin from "./admin";
 
-exports.initializeApp = () => initializeApp();
+initializeApp();
 
 exports.user = user;
 exports.activity = activity;
