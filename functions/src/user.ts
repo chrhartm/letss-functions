@@ -1,414 +1,384 @@
-import functions = require("firebase-functions");
-import admin = require("firebase-admin");
-import {firestore} from "firebase-admin";
-import utils = require("./utils");
+import {onCall, HttpsError, CallableRequest}
+  from "firebase-functions/v2/https";
+import {onDocumentUpdated, QueryDocumentSnapshot}
+  from "firebase-functions/v2/firestore";
+import {beforeUserCreated, AuthBlockingEvent}
+  from "firebase-functions/v2/identity";
+import {Change} from "firebase-functions/v2";
+import {firestore, auth, storage} from "firebase-admin";
+import {addToEmailList, removeFromEmailList, deleteCollection,
+    deleteQueryResults} from "./utils";
+const {setGlobalOptions} = require("firebase-functions/v2"); // eslint-disable-line
+setGlobalOptions({region: "europe-west1"});
 
-exports.updateSubscription = functions.region("europe-west1")
-    .runWith({
-      enforceAppCheck: false,
-    })
-    .https.onCall(
-        async (data, context) => {
-          /*
-          if (context.app == undefined) {
-            throw new functions.https.HttpsError(
-                "failed-precondition",
-                "The function must be called from an App Check verified app.");
-          }
-          */
-          const userId = context.auth?context.auth.uid:null;
-          if (userId == null) {
-            throw new functions.https.HttpsError("unauthenticated",
-                "Not authenticated");
-          }
-          const db = admin.firestore();
-          const productId = data.productId;
-          const timestamp = new Date(data.timestamp);
-          let badge = "";
 
-          console.log("userid: " + userId);
-          console.log("productId: " + productId);
-          console.log("timestamp: " + timestamp);
+exports.updateSubscription = onCall(
+    async (request: CallableRequest) => {
+      const userId = request.auth?request.auth.uid:null;
+      if (userId == null) {
+        throw new HttpsError("unauthenticated",
+            "Not authenticated");
+      }
+      const db = firestore();
+      const productId = request.data.productId;
+      const timestamp = new Date(request.data.timestamp);
+      let badge = "";
 
-          try {
-            await db.collection("badges")
-                .doc(productId)
-                .get()
-                .then((doc) => {
-                  const docData = doc.data();
-                  if (docData == null) {
-                    throw new functions.https.HttpsError("not-found",
-                        "Product not found");
-                  }
-                  badge = docData.badge;
-                });
-          } catch (error) {
-            throw new functions.https.HttpsError("not-found",
-                "Couldn 't find user.");
-          }
-          try {
-            await db.collection("users")
-                .doc(userId)
-                .update({"subscription":
+      console.log("userid: " + userId);
+      console.log("productId: " + productId);
+      console.log("timestamp: " + timestamp);
+
+      try {
+        await db.collection("badges")
+            .doc(productId)
+            .get()
+            .then((doc) => {
+              const docData = doc.data();
+              if (docData == null) {
+                throw new HttpsError("not-found",
+                    "Product not found");
+              }
+              badge = docData.badge;
+            });
+      } catch {
+        throw new HttpsError("not-found",
+            "Couldn 't find user.");
+      }
+      try {
+        await db.collection("users")
+            .doc(userId)
+            .update({"subscription":
                     {"productId": productId, "timestamp": timestamp},
-                "coins": 50});
-          } catch (error) {
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't update user.");
-          }
-          try {
-            await db.collection("persons")
-                .doc(userId)
-                .update({"badge": badge});
-          } catch (error) {
-            console.log("couldn't update badge in person " + error);
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't update person.");
-          }
-        });
+            "coins": 50});
+      } catch {
+        throw new HttpsError("unknown",
+            "Couldn't update user.");
+      }
+      try {
+        await db.collection("persons")
+            .doc(userId)
+            .update({"badge": badge});
+      } catch (error) {
+        console.log("couldn't update badge in person " + error);
+        throw new HttpsError("unknown",
+            "Couldn't update person.");
+      }
+    });
 
-exports.markReviewRequested = functions.region("europe-west1")
-    .runWith({
-      enforceAppCheck: false,
-    })
-    .https.onCall(
-        async (data, context) => {
-          /*
+exports.markReviewRequested = onCall(
+    async (request: CallableRequest) => {
+      /*
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
                 "The function must be called from an App Check verified app.");
           }
           */
-          const userId = context.auth?context.auth.uid:null;
-          if (userId == null) {
-            throw new functions.https.HttpsError("unauthenticated",
-                "Not authenticated");
-          }
-          const db = admin.firestore();
+      const userId = request.auth?request.auth.uid:null;
+      if (userId == null) {
+        throw new HttpsError("unauthenticated",
+            "Not authenticated");
+      }
+      const db = firestore();
 
-          console.log("userid: " + userId);
+      console.log("userid: " + userId);
 
-          try {
-            await db.collection("users")
-                .doc(userId)
-                .update({"requestedReview": firestore.Timestamp.now()});
-          } catch (error) {
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't update user.");
-          }
-        });
+      try {
+        await db.collection("users")
+            .doc(userId)
+            .update({"requestedReview": firestore.Timestamp.now()});
+      } catch {
+        throw new HttpsError("unknown",
+            "Couldn't update user.");
+      }
+    });
 
-exports.markSupportRequested = functions.region("europe-west1")
-    .runWith({
-      enforceAppCheck: false,
-    })
-    .https.onCall(
-        async (data, context) => {
-          /*
+exports.markSupportRequested = onCall(
+    async (request: CallableRequest) => {
+      /*
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
                 "The function must be called from an App Check verified app.");
           }
           */
-          const userId = context.auth?context.auth.uid:null;
-          if (userId == null) {
-            throw new functions.https.HttpsError("unauthenticated",
-                "Not authenticated");
-          }
-          const db = admin.firestore();
+      const userId = request.auth?request.auth.uid:null;
+      if (userId == null) {
+        throw new HttpsError("unauthenticated",
+            "Not authenticated");
+      }
+      const db = firestore();
 
-          console.log("userid: " + userId);
+      console.log("userid: " + userId);
 
-          try {
-            await db.collection("users")
-                .doc(userId)
-                .update({"lastSupportRequest": firestore.Timestamp.now()});
-          } catch (error) {
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't update user.");
-          }
-        });
+      try {
+        await db.collection("users")
+            .doc(userId)
+            .update({"lastSupportRequest": firestore.Timestamp.now()});
+      } catch {
+        throw new HttpsError("unknown",
+            "Couldn't update user.");
+      }
+    });
 
-exports.markNotificationsRequested = functions.region("europe-west1")
-    .runWith({
-      enforceAppCheck: false,
-    })
-    .https.onCall(
-        async (data, context) => {
-          /*
+exports.markNotificationsRequested = onCall(
+    async (request: CallableRequest) => {
+      /*
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
                 "The function must be called from an App Check verified app.");
           }
           */
-          const userId = context.auth?context.auth.uid:null;
-          if (userId == null) {
-            throw new functions.https.HttpsError("unauthenticated",
-                "Not authenticated");
-          }
-          const db = admin.firestore();
+      const userId = request.auth?request.auth.uid:null;
+      if (userId == null) {
+        throw new HttpsError("unauthenticated",
+            "Not authenticated");
+      }
+      const db = firestore();
 
-          console.log("userid: " + userId);
+      console.log("userid: " + userId);
 
-          try {
-            await db.collection("users")
-                .doc(userId)
-                .update({"lastNotificationsRequest":
+      try {
+        await db.collection("users")
+            .doc(userId)
+            .update({"lastNotificationsRequest":
                   firestore.Timestamp.now()});
-          } catch (error) {
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't update user.");
-          }
-        });
+      } catch {
+        throw new HttpsError("unknown",
+            "Couldn't update user.");
+      }
+    });
 
-exports.updateLastOnline = functions.region("europe-west1")
-    .runWith({
-      enforceAppCheck: false,
-    })
-    .https.onCall(
-        async (data, context) => {
-          /*
+exports.updateLastOnline = onCall(
+    async (request: CallableRequest) => {
+      /*
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
                 "The function must be called from an App Check verified app.");
           }
           */
-          const userId = context.auth?context.auth.uid:null;
-          if (userId == null) {
-            throw new functions.https.HttpsError("unauthenticated",
-                "Not authenticated");
-          }
-          const db = admin.firestore();
+      const userId = request.auth?request.auth.uid:null;
+      if (userId == null) {
+        throw new HttpsError("unauthenticated",
+            "Not authenticated");
+      }
+      const db = firestore();
 
-          console.log("userid: " + userId);
+      console.log("userid: " + userId);
 
-          try {
-            await db.collection("users")
-                .doc(userId)
-                .update({"lastOnline": firestore.Timestamp.now()});
-          } catch (error) {
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't update user.");
-          }
-        });
+      try {
+        await db.collection("users")
+            .doc(userId)
+            .update({"lastOnline": firestore.Timestamp.now()});
+      } catch {
+        throw new HttpsError("unknown",
+            "Couldn't update user.");
+      }
+    });
 
-exports.getConfig = functions.region("europe-west1")
-    .runWith({
-      enforceAppCheck: false,
-    })
-    .https.onCall(
-        async (data, context) => {
-          /*
+exports.getConfig = onCall(
+    async (request: CallableRequest) => {
+      /*
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
                 "The function must be called from an App Check verified app.");
           }
           */
-          const userId = context.auth?context.auth.uid:null;
-          if (userId == null) {
-            throw new functions.https.HttpsError("unauthenticated",
-                "Not authenticated");
-          }
-          const db = admin.firestore();
-          let forceAddActivity = true;
-          const searchDays = 1000;
+      const userId = request.auth?request.auth.uid:null;
+      if (userId == null) {
+        throw new HttpsError("unauthenticated",
+            "Not authenticated");
+      }
+      const db = firestore();
+      let forceAddActivity = true;
+      const searchDays = 1000;
 
-          console.log("userid: " + userId);
+      console.log("userid: " + userId);
 
-          try {
-            await db.collection("persons")
-                .doc(userId)
-                .get().then((doc) => {
-                  const personData = doc.data();
-                  if (personData == null) {
-                    throw new functions.https.HttpsError("not-found",
-                        "Person not found");
-                  }
-                  // TODO Fix this
-                  /*
+      try {
+        await db.collection("persons")
+            .doc(userId)
+            .get().then((doc) => {
+              const personData = doc.data();
+              if (personData == null) {
+                throw new HttpsError("not-found",
+                    "Person not found");
+              }
+              // TODO Fix this
+              /*
                   const locality = personData.location.locality;
                   if (locality == "EAGx Utrecht" || locality == "EAGx London") {
 
                    } */
-                  forceAddActivity = false;
-                });
-          } catch (error) {
-            console.log("error: " + error);
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't get person data.");
-          }
-          const returnData = {
-            "forceAddActivity": forceAddActivity,
-            "activityAddPromptEveryTenX": 2,
-            "minChatsForReview": 3,
-            "searchDays": searchDays,
-            // Deprecated - Use Firebase Config instead for easier l10n
-            "supportPitch": "Enjoying our app? Buy us a coffee and" +
+              forceAddActivity = false;
+            });
+      } catch (error) {
+        console.log("error: " + error);
+        throw new HttpsError("unknown",
+            "Couldn't get person data.");
+      }
+      const returnData = {
+        "forceAddActivity": forceAddActivity,
+        "activityAddPromptEveryTenX": 2,
+        "minChatsForReview": 3,
+        "searchDays": searchDays,
+        // Deprecated - Use Firebase Config instead for easier l10n
+        "supportPitch": "Enjoying our app? Buy us a coffee and" +
               " get a supporter badge on your profile.",
-            "supportRequestInterval": 360,
-            "notificationsRequestInterval": 7,
-            "hubs": [
+        "supportRequestInterval": 360,
+        "notificationsRequestInterval": 7,
+        "hubs": [
+          /*
               {"name": "EAG London",
                 "lat": 0,
                 "lng": 0,
                 "emoji": "💡"},
-              /*
               {"name": "EAGx Utrecht",
                 "lat": 0,
                 "lng": 0,
                 "emoji": "💡"},
               */
-              /*
-              {"name": "Amsterdam",
-                "lat": 52.370216,
-                "lng": 4.895168,
-                "emoji": "🇳🇱"},
-              {"name": "Berlin",
-                "lat": 52.520008,
-                "lng": 13.404954,
-                "emoji": "🇩🇪"},
-              {"name": "Zurich",
-                "lat": 47.376888,
-                "lng": 8.541694,
-                "emoji": "🇨🇭"},
-              {"name": "London",
-                "lat": 51.507351,
-                "lng": -0.127758,
-                "emoji": "🇬🇧"},
-                */
-            ],
-          };
-          return returnData;
-        });
-
-exports.updateToken = functions.region("europe-west1")
-    .runWith({
-      enforceAppCheck: false,
-    })
-    .https.onCall(
-        async (data, context) => {
-          /*
-          if (context.app == undefined) {
-            throw new functions.https.HttpsError(
-                "failed-precondition",
-                "The function must be called from an App Check verified app.");
-          }
-          */
-          const userId = context.auth?context.auth.uid:null;
-          if (userId == null) {
-            throw new functions.https.HttpsError("unauthenticated",
-                "Not authenticated");
-          }
-          const db = admin.firestore();
-          const token = data.token;
-          if (token == null) {
-            throw new functions.https.HttpsError("invalid-argument",
-                "No token provided.");
-          }
-
-          console.log("userid: " + userId);
-          console.log("token: " + token);
-
-          try {
-            await db.collection("users")
-                .doc(userId)
-                .update({"token": {"token": token,
-                  "timestamp": firestore.Timestamp.now()}});
-          } catch (error) {
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't update user.");
-          }
-        });
-
-exports.updateLocale = functions.region("europe-west1")
-    .runWith({
-      enforceAppCheck: false,
-    })
-    .https.onCall(
-        async (data, context) => {
-          /*
-          if (context.app == undefined) {
-            throw new functions.https.HttpsError(
-                "failed-precondition",
-                "The function must be called from an App Check verified app.");
-          }
-          */
-          const userId = context.auth?context.auth.uid:null;
-          if (userId == null) {
-            throw new functions.https.HttpsError("unauthenticated",
-                "Not authenticated");
-          }
-          const db = admin.firestore();
-          const locale = data.locale;
-          if (locale == null) {
-            throw new functions.https.HttpsError("invalid-argument",
-                "No locale provided.");
-          }
-
-          console.log("userid: " + userId);
-          console.log("locale: " + locale);
-
-          try {
-            await db.collection("users")
-                .doc(userId)
-                .update({"locale": locale});
-          } catch (error) {
-            throw new functions.https.HttpsError("unknown",
-                "Couldn't update user.");
-          }
-        });
-
-exports.validatePerson = functions.region("europe-west1").firestore
-    .document("/persons/{personId}")
-    .onUpdate((change, ) => {
-      const db = admin.firestore();
-      const uid = change.after.id;
-      const afterP = change.after.data();
-
-      console.log("Validating person: " + uid);
-
-      return sendEmailOnJoin(change).then(() => {
-        return db.collection("users").doc(uid)
-            .get().then((document) => {
-              if (document.exists == false) {
-                console.log("Couldn't find user: " + uid);
-                throw new functions.https.HttpsError("not-found",
-                    "Couldn't find user.");
-              }
-              const user = document.data();
-              if (user == null) {
-                throw new functions.https.HttpsError("not-found",
-                    "User not found.");
-              }
-              if (user.badge == afterP.badge) {
-                console.log("Nothing to do for : " + uid);
-                return null;
-              } else {
-                return db.collection("badges")
-                    .doc(user.subscription.productId)
-                    .get()
-                    .then((badge) => {
-                      const badgeData = badge.data();
-                      if (badgeData == null) {
-                        throw new functions.https.HttpsError("not-found",
-                            "Product not found");
-                      }
-                      return db.collection("persons")
-                          .doc(uid)
-                          .update({"badge": badgeData.badge}).then(() => {
-                            console.log("Updated badge for " + uid);
-                            return null;
-                          });
-                    });
-              }
-            });
-      });
+          {"name": "Amsterdam",
+            "lat": 52.370216,
+            "lng": 4.895168,
+            "emoji": "🇳🇱"},
+          {"name": "Berlin",
+            "lat": 52.520008,
+            "lng": 13.404954,
+            "emoji": "🇩🇪"},
+          {"name": "Zurich",
+            "lat": 47.376888,
+            "lng": 8.541694,
+            "emoji": "🇨🇭"},
+          {"name": "London",
+            "lat": 51.507351,
+            "lng": -0.127758,
+            "emoji": "🇬🇧"},
+        ],
+      };
+      return returnData;
     });
+
+exports.updateToken = onCall(
+    async (request: CallableRequest) => {
+      /*
+          if (context.app == undefined) {
+            throw new functions.https.HttpsError(
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
+          }
+          */
+      const userId = request.auth?request.auth.uid:null;
+      if (userId == null) {
+        throw new HttpsError("unauthenticated",
+            "Not authenticated");
+      }
+      const db = firestore();
+      const token = request.data.token;
+      if (token == null) {
+        throw new HttpsError("invalid-argument",
+            "No token provided.");
+      }
+
+      console.log("userid: " + userId);
+      console.log("token: " + token);
+
+      try {
+        await db.collection("users")
+            .doc(userId)
+            .update({"token": {"token": token,
+              "timestamp": firestore.Timestamp.now()}});
+      } catch {
+        throw new HttpsError("unknown",
+            "Couldn't update user.");
+      }
+    });
+
+exports.updateLocale = onCall(
+    async (request: CallableRequest) => {
+      /*
+          if (context.app == undefined) {
+            throw new functions.https.HttpsError(
+                "failed-precondition",
+                "The function must be called from an App Check verified app.");
+          }
+          */
+      const userId = request.auth?request.auth.uid:null;
+      if (userId == null) {
+        throw new HttpsError("unauthenticated",
+            "Not authenticated");
+      }
+      const db = firestore();
+      const locale = request.data.locale;
+      if (locale == null) {
+        throw new HttpsError("invalid-argument",
+            "No locale provided.");
+      }
+
+      console.log("userid: " + userId);
+      console.log("locale: " + locale);
+
+      try {
+        await db.collection("users")
+            .doc(userId)
+            .update({"locale": locale});
+      } catch {
+        throw new HttpsError("unknown",
+            "Couldn't update user.");
+      }
+    });
+
+exports.validatePerson = onDocumentUpdated("/persons/{personId}", (event) => {
+  const db = firestore();
+  if (event.data == null) {
+    throw new HttpsError("not-found",
+        "No data.");
+  }
+  const uid = event.data.after.id;
+  const afterP = event.data.after.data();
+
+  console.log("Validating person: " + uid);
+
+  return sendEmailOnJoin(event.data).then(() => {
+    return db.collection("users").doc(uid)
+        .get().then((document) => {
+          if (document.exists == false) {
+            console.log("Couldn't find user: " + uid);
+            throw new HttpsError("not-found",
+                "Couldn't find user.");
+          }
+          const user = document.data();
+          if (user == null) {
+            throw new HttpsError("not-found",
+                "User not found.");
+          }
+          if (user.badge == afterP.badge) {
+            console.log("Nothing to do for : " + uid);
+            return null;
+          } else {
+            return db.collection("badges")
+                .doc(user.subscription.productId)
+                .get()
+                .then((badge) => {
+                  const badgeData = badge.data();
+                  if (badgeData == null) {
+                    throw new HttpsError("not-found",
+                        "Product not found");
+                  }
+                  return db.collection("persons")
+                      .doc(uid)
+                      .update({"badge": badgeData.badge}).then(() => {
+                        console.log("Updated badge for " + uid);
+                        return null;
+                      });
+                });
+          }
+        });
+  });
+});
 
 /**
    * Send an email on join
@@ -416,8 +386,7 @@ exports.validatePerson = functions.region("europe-west1").firestore
    * change - change
    * @return {function} - Some function
    */
-async function sendEmailOnJoin(change:
-    functions.Change<functions.firestore.QueryDocumentSnapshot>) {
+async function sendEmailOnJoin(change: Change<QueryDocumentSnapshot>) {
   // Check if location changed from null to something
   const before = change.before.data();
   const after = change.after.data();
@@ -427,7 +396,7 @@ async function sendEmailOnJoin(change:
     return;
   }
 
-  const db = admin.firestore();
+  const db = firestore();
   let count = 1;
 
   console.log("Sending email for: " + uid);
@@ -459,24 +428,24 @@ async function sendEmailOnJoin(change:
       .then((document) => {
         if (document.exists == false) {
           console.log("Couldn't find person: " + uid);
-          throw new functions.https.HttpsError("not-found",
+          throw new HttpsError("not-found",
               "Couldn't find person.");
         }
         const personData = document.data();
         if (personData == null) {
-          throw new functions.https.HttpsError("not-found",
+          throw new HttpsError("not-found",
               "Person not found.");
         }
 
-        return admin.auth().getUser(uid)
+        return auth().getUser(uid)
             .then((userRecord) => {
               const email = userRecord.email;
               if (email == null) {
-                throw new functions.https.HttpsError("not-found",
+                throw new HttpsError("not-found",
                     "Email not found.");
               }
               // Send email
-              return utils.addToEmailList(
+              return addToEmailList(
                   personData.name as string,
                   email,
                   after.location["locality"] as string,
@@ -488,16 +457,15 @@ async function sendEmailOnJoin(change:
             })
             .catch(function(error) {
               console.log("Error adding user to list: ", error);
-              throw new functions.https.HttpsError("unknown",
+              throw new HttpsError("unknown",
                   "Error adding user to list.");
             });
       });
 }
 
-exports.initializeUser = functions.auth
-    .user()
-    .onCreate(async (user, ) => {
-      const db = admin.firestore();
+exports.initializeUser = beforeUserCreated(
+    async (event: AuthBlockingEvent, ) => {
+      const db = firestore();
       const payload = {"coins": 10,
         "lastSupportRequest": firestore.Timestamp.now(),
         "lastOnline": firestore.Timestamp.now(),
@@ -506,40 +474,37 @@ exports.initializeUser = functions.auth
         "subscription":
             {"productId": "none", "timestamp": firestore.Timestamp.now()}};
 
-      console.log("Initializing user: " + user.uid);
+      const uid:string = event.data.uid;
+      console.log("Initializing user: " + uid);
 
       return db.collection("users")
-          .doc(user.uid)
+          .doc(uid)
           .set(payload, {merge: true})
-          .then(() => console.log("Initialized user " + user.uid))
+          .then(() => console.log("Initialized user " + uid))
           .catch(function(error) {
             console.log("Error: " + error);
-            throw new functions.https.HttpsError("unknown",
+            throw new HttpsError("unknown",
                 "Error initializing user.");
           });
     });
 
-exports.deleteUser = functions.region("europe-west1")
-    .runWith({
-      enforceAppCheck: false,
-    })
-    .https.onCall(
-        async (data, context) => {
-          /*
+exports.deleteUser = onCall(
+    async (request: CallableRequest) => {
+      /*
           if (context.app == undefined) {
             throw new functions.https.HttpsError(
                 "failed-precondition",
                 "The function must be called from an App Check verified app.");
           }
           */
-          const userId = context.auth?context.auth.uid:null;
-          if (userId == null) {
-            throw new functions.https.HttpsError("unauthenticated",
-                "Not authenticated");
-          }
-          console.log("Deleting userid: " + userId);
-          return deleteUser(userId);
-        });
+      const userId = request.auth?request.auth.uid:null;
+      if (userId == null) {
+        throw new HttpsError("unauthenticated",
+            "Not authenticated");
+      }
+      console.log("Deleting userid: " + userId);
+      return deleteUser(userId);
+    });
 
 /**
  * Delete a user
@@ -547,11 +512,11 @@ exports.deleteUser = functions.region("europe-west1")
  * @return {function} - Some function TODO this doesn't make sense
  */
 async function deleteUser(userId: string) {
-  const db = admin.firestore();
+  const db = firestore();
   const batchSize = 100;
   // global error flag to not interrupt deletion process
   let error = false;
-  const defaultBucket = admin.storage().bucket();
+  const defaultBucket = storage().bucket();
 
   console.log("Deleting userid: " + userId);
 
@@ -564,16 +529,16 @@ async function deleteUser(userId: string) {
       .then(
           (query) => {
             if (!query.empty) {
-              throw new functions.https.HttpsError("unknown",
+              throw new HttpsError("unknown",
                   "User can't be deleted.");
             }
           });
 
   // Remove from sendGrid by first getting email from auth
   console.log("Removing from email list");
-  await admin.auth().getUser(userId)
+  await auth().getUser(userId)
       .then((user) => {
-        return utils.removeFromEmailList(user.email as string)
+        return removeFromEmailList(user.email as string)
             .then(() => console.log("Removed user from list"))
             .catch(function(err) {
               console.log("Error removing user from list: " + err);
@@ -631,7 +596,7 @@ async function deleteUser(userId: string) {
                 async (doc) => {
                   const collection = "activities/"+doc.id+"/likes";
                   console.log("Attempting delete for : " + collection);
-                  await utils.deleteCollection(db,
+                  await deleteCollection(db,
                       collection, batchSize)
                       .then((val) => {
                         console.log("Deleted likes on own activities: " +
@@ -751,7 +716,7 @@ async function deleteUser(userId: string) {
           });
   const followers = "followers/" + userId + "/followers";
   console.log("Deleting followers");
-  await utils.deleteCollection(db,
+  await deleteCollection(db,
       followers, batchSize)
       .then(() => {
         console.log("Deleted followers ");
@@ -791,7 +756,7 @@ async function deleteUser(userId: string) {
 
   const following = "following/" + userId + "/following";
   console.log("Deleting following");
-  await utils.deleteCollection(db,
+  await deleteCollection(db,
       following, batchSize)
       .then(() => {
         console.log("Deleted following ");
@@ -828,7 +793,7 @@ async function deleteUser(userId: string) {
               console.log("Attempting delete for : " + collection);
               const query = db.collection(collection).where("user",
                   "==", userId);
-              await utils.deleteQueryResults(db,
+              await deleteQueryResults(db,
                   query, batchSize)
                   .then((val) => {
                     console.log("Deleted messages on own chat: " +
@@ -904,7 +869,7 @@ async function deleteUser(userId: string) {
               console.log("Attempting delete for : " + collection);
               const query = db.collection(collection).where("user",
                   "==", userId);
-              await utils.deleteQueryResults(db,
+              await deleteQueryResults(db,
                   query, batchSize)
                   .then((val) => {
                     console.log("Deleted messages on own leftChat: " +
@@ -980,13 +945,13 @@ async function deleteUser(userId: string) {
       });
   // delete user (auth)
   console.log("Deleting user (auth)");
-  admin.auth().deleteUser(userId)
+  auth().deleteUser(userId)
       .catch(function(err) {
         console.log("Couldn't delete auth user: " + err);
         error = true;
       });
   if (error) {
-    throw new functions.https.HttpsError("unknown",
+    throw new HttpsError("unknown",
         "Error deleting user.");
   }
 }

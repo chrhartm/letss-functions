@@ -1,5 +1,12 @@
 {
   "projects": {
     "default": "letss-11cc7"
-  }
+  },
+  "targets": {},
+  "etags": {
+    "letss-11cc7": {
+      "extensionInstances": {}
+    }
+  },
+  "dataconnectEmulatorConfig": {}
 }
