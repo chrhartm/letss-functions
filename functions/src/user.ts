@@ -238,7 +238,7 @@ exports.getConfig = onCall({region: "europe-west1"},
                 "lat": 0,
                 "lng": 0,
                 "emoji": "💡"},
-              */
+              
           {"name": "Amsterdam",
             "lat": 52.370216,
             "lng": 4.895168,
@@ -255,6 +255,7 @@ exports.getConfig = onCall({region: "europe-west1"},
             "lat": 51.507351,
             "lng": -0.127758,
             "emoji": "🇬🇧"},
+            */
         ],
       };
       return returnData;
