@@ -191,7 +191,7 @@ exports.getConfig = onCall({region: "europe-west1"},
             "Not authenticated");
       }
       const db = firestore();
-      let forceAddActivity = true;
+      const forceAddActivity = true;
       const searchDays = 1000;
 
       console.log("userid: " + userId);
@@ -205,13 +205,12 @@ exports.getConfig = onCall({region: "europe-west1"},
                 throw new HttpsError("not-found",
                     "Person not found");
               }
-              // TODO Fix this
               /*
-                  const locality = personData.location.locality;
-                  if (locality == "EAGx Utrecht" || locality == "EAGx London") {
-
-                   } */
-              forceAddActivity = false;
+              const locality = personData.location.locality;
+              if (locality == "EAGx Utrecht" || locality == "EAGx London") {
+                forceAddActivity = false;
+              }
+              */
             });
       } catch (error) {
         console.log("error: " + error);
