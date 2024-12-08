@@ -468,6 +468,20 @@ async function sendEmailOnJoin(change: Change<QueryDocumentSnapshot>) {
 exports.initializeUser = beforeUserCreated({region: "europe-west1"},
     async (event: AuthBlockingEvent, ) => {
       const db = firestore();
+      // Check if event.data exists
+      if (!event.data) {
+        console.error("No event data received");
+        return;
+      }
+
+      // Check if uid exists
+      const uid = event.data.uid;
+      if (!uid) {
+        console.error("No UID found in event data");
+        console.log("data", event.data);
+        return;
+      }
+
       const payload = {"coins": 10,
         "lastSupportRequest": firestore.Timestamp.now(),
         "lastOnline": firestore.Timestamp.now(),
@@ -476,7 +490,6 @@ exports.initializeUser = beforeUserCreated({region: "europe-west1"},
         "subscription":
             {"productId": "none", "timestamp": firestore.Timestamp.now()}};
 
-      const uid:string = event.data.uid;
       console.log("Initializing user: " + uid);
 
       return db.collection("users")
