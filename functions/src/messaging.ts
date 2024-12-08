@@ -216,6 +216,10 @@ exports.pushScheduled = onSchedule("0 10 * * 5", () => {
                              notification.template);
                             return;
                           }
+                          if (user.token == null) {
+                            console.log("No token for " + notification.user);
+                            return;
+                          }
                           // Send push notificaiton
                           // title and body localization
                           let body = template.name;
@@ -283,7 +287,7 @@ exports.pushOnLike = onDocumentCreated(
       if (snap == null) {
         throw new HttpsError("not-found",
             "No data.");
-      }      
+      } 
       const db = firestore();
       console.log("ActivityId: " + event.params.activityId);
       console.log("LikeId: " + event.params.likeId);
@@ -329,6 +333,10 @@ exports.pushOnLike = onDocumentCreated(
                         if (receiverU == null) {
                           throw new HttpsError("not-found",
                               "Couldn't find user.");
+                        }
+                        if (receiverU.token == null) {
+                          console.log("No token for " + activityData.user);
+                          return;
                         }
                         /*
                         const now = firestore.Timestamp.now().seconds;
@@ -950,6 +958,10 @@ exports.pushOnFollower = onDocumentCreated(
                   if (personU == null) {
                     throw new HttpsError("not-found",
                         "Couldn't find user.");
+                  }
+                  if (personU.token == null) {
+                    console.log("No token for " + personId);
+                    return;
                   }
                   // Send message
                   let titleString = " started following you";
