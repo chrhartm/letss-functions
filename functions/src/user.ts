@@ -329,7 +329,11 @@ exports.updateLocale = onCall({region: "europe-west1"},
       }
     });
 
-exports.validatePerson = onDocumentUpdated("/persons/{personId}", (event) => {
+exports.validatePerson = onDocumentUpdated(
+  {
+    document: "/persons/{personId}",
+    secrets: ["SENDGRID_KEY"]
+  }, (event) => {
   const db = firestore();
   if (event.data == null) {
     throw new HttpsError("not-found",
@@ -486,7 +490,10 @@ exports.initializeUser = beforeUserCreated({region: "europe-west1"},
           });
     });
 
-exports.deleteUser = onCall({region: "europe-west1"},
+exports.deleteUser = onCall(
+  {region: "europe-west1",
+    secrets: ["SENDGRID_KEY"]
+  },
     async (request: CallableRequest) => {
       /*
           if (context.app == undefined) {

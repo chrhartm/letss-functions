@@ -1,6 +1,6 @@
 import * as sendGridMail from "@sendgrid/mail";
 import * as sendGridClient from "@sendgrid/client";
-import {config} from "firebase-functions";
+import {defineSecret} from "firebase-functions/params";
 
 /**
  * Copied from https://firebase.google.com/docs/firestore/manage-data/delete-data
@@ -93,7 +93,8 @@ export async function sendEmail(templateId: string,
     data: any) {
   console.log("Sending email with template " + templateId);
 
-  sendGridMail.setApiKey(config().sendgrid.key);
+  const sendgridKey = defineSecret("SENDGRID_KEY").value();
+  sendGridMail.setApiKey(sendgridKey);
 
   const mailData = {
     to: toAddress,
@@ -126,7 +127,8 @@ export async function addToEmailList(
     count: number,
     language: string,
 ) {
-  sendGridClient.setApiKey(config().sendgrid.key);
+  const sendgridKey = defineSecret("SENDGRID_KEY").value();
+  sendGridClient.setApiKey(sendgridKey);
   console.log(language);
   // replace empty language by english
   if (language === "" || language === undefined) {
@@ -168,7 +170,8 @@ export async function addToEmailList(
    * @return {function} - Some function
    */
 export async function removeFromEmailList(address: string) {
-  sendGridClient.setApiKey(config().sendgrid.key);
+  const sendgridKey = defineSecret("SENDGRID_KEY").value();
+  sendGridClient.setApiKey(sendgridKey);
   // First get the contact ID
   console.log(address);
   const request = {

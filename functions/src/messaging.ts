@@ -7,7 +7,10 @@ import {onSchedule} from "firebase-functions/v2/scheduler";
 import * as utils from "./utils";
 
 // Send an email every Wednesday with activities they missed
-exports.emailMissed = onSchedule("0 10 * * 3", () => {
+exports.emailMissed = onSchedule({
+  schedule: "0 10 * * 3",
+  secrets: ["SENDGRID_KEY"]
+}, () => {
       const db = firestore();
       // First get all users who haven't been online in last week
       // Then for the localities "Berlin", "London", and "Amsterdam"
@@ -140,26 +143,22 @@ exports.emailMissed = onSchedule("0 10 * * 3", () => {
                                                 receiver);
                                               return;
                                             }
-                                            console.log("Sending email to: " +
-                                              receiver + " for locality " +
-                                              locality);
 
                                             const template =
                                               userLanguage[receiver] == "de" ?
                                               templateDE : templateEN;
 
-                                            console.log("Template: " +
-                                              template);
-
                                             // Send email
+                                            console.log("Sending email to " +
+                                              userEmail);
                                             return utils.sendEmail(
-                                                template,
-                                                "Letss",
-                                                "christoph@letss.app",
-                                                userEmail,
-                                                24545,
-                                                emailData
-                                            );
+                                              template,
+                                              "Letss",
+                                              "christoph@letss.app",
+                                              userEmail,
+                                              24545,
+                                              emailData
+                                              );
                                           }));
                                 }
                                 // then() needed to match return type
@@ -276,7 +275,10 @@ exports.pushScheduled = onSchedule("0 10 * * 5", () => {
     });
 
 exports.pushOnLike = onDocumentCreated(
-    "/activities/{activityId}/likes/{likeId}", (event) => {
+  {
+    document: "/activities/{activityId}/likes/{likeId}",
+    secrets: ["SENDGRID_KEY"]
+  }, (event) => {
       const snap = event.data;
       if (snap == null) {
         throw new HttpsError("not-found",
@@ -993,7 +995,10 @@ exports.pushOnFollower = onDocumentCreated(
 
 
 exports.alertOnFlag = onDocumentCreated(
-    "/flags/{flagId}",
+    {
+      document: "/flags/{flagId}",
+      secrets: ["SENDGRID_KEY"]
+    },
     (event) => {
       const snap = event.data;
       if (snap == null) {
